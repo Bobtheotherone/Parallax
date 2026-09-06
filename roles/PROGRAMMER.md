@@ -1,149 +1,172 @@
-# Program synthesis algorithm
+# Task-language program synthesis algorithm
 
-This document is for generating a solution **against an already frozen task and
-admitted capsule**. It is not a repository-coding persona and it does not authorize
-changes to the task, semantic pack, checker, backend, or host capabilities.
+This document governs the programmer stage on `experimental`. The programmer
+receives a frozen task and a newly synthesized AI-native task language `L_T`, then
+must produce the serious candidate **in that language before host-language code is
+generated**.
 
-Inputs: frozen task contract, admitted capsule plus identity, selected operation
-semantics/tutorial, available tools, total remaining budget, and exact diagnostics
-from prior attempts.
+Inputs: frozen task, frozen `L_T` definition/identity, instruction semantics and
+lowering rules, available tools, remaining budget, and exact permitted diagnostics.
 
-## 1. Compress the contract before generating syntax
+The programmer does not change the task, language semantics, host permissions, or
+final oracle during one frozen attempt.
 
-Extract the smallest internal model that can determine correctness:
+## 1. Compress the contract into language-level invariants
+
+Extract the facts that determine correctness:
 
 ```text
-input domain and shapes
+input domain / shapes / initial states
 required output relation
-state/effects and prohibited behavior
-ordering/provenance invariants
+ordering and provenance
+state/effects/ownership
 numerical/error policy
-performance objective after correctness
-capsule operations and restrictions
+resource/performance objective
+language instruction/state model
 ```
 
-For each task phrase that can change dataflow—“original,” “after,” “exactly once,”
-“stable,” “in order,” “at least,” “before commit,” etc.—translate it into an
-explicit invariant. If the task is locally ambiguous but a reversible choice does
-not change externally visible semantics, choose a sensible default and continue.
-Escalate only ambiguity that can change the contract, safety, compatibility, or an
-irreversible architecture decision.
+Map task-critical phrases such as “original,” “before,” “stable,” “exactly once,”
+“same buffer,” “after commit,” or “within tolerance” to explicit value/state/dataflow
+relationships in `L_T`.
 
-## 2. Design the semantic plan outside the surface syntax
+Do not begin by writing host code.
 
-Write the algorithm first as transformations and dependencies. Identify:
+## 2. Design the algorithm in the generated language
 
-- what data each decision observes;
-- which values must remain distinguishable;
-- where aggregation/reduction occurs;
-- state transitions or effects, if the pack has them;
-- boundaries where ordering, aliasing, concurrency, or numerical association matter;
-- the expensive intermediates likely to dominate resource use.
+Construct the solution using `L_T` values, instructions, nodes, states, constraints,
+or schedules.
 
-Then map each step to admitted operations. Prefer an existing operation or macro
-whose semantics match directly. Do not contort the task to fit the available
-surface.
+Reason explicitly about:
 
-For `intseq`, this often means a sequence pipeline followed by scalar reductions.
-Annotate intermediate types before emitting JSON; build the expression inside-out.
+- which value/state each operation observes;
+- dependency and control order;
+- where information is transformed or discarded;
+- ownership/effect boundaries;
+- aggregation/reduction scope;
+- expensive intermediates and resource pressure;
+- target-specific schedule/layout choices exposed by the language.
 
-## 3. Use representation leverage deliberately
+The task-language program should be the actual algorithmic artifact from which the
+host implementation follows.
 
-A macro or restricted interface is useful when it removes irrelevant search while
-preserving the choices that determine the algorithm. Treat an opaque whole-task
-macro as pre-synthesized algorithmic work, not as evidence that the final one-token
-call solved the task cheaply.
+## 3. Exploit the language's AI-native structure
 
-Prefer familiar composition over gratuitous novelty. Do not request a new primitive
-just because its spelling would shorten the candidate. A missing capability claim
-should identify the exact required behavior that cannot be constructed from the
-admitted semantics under the real constraints.
+Use the representation the synthesizer created instead of mentally translating back
+to a familiar language.
 
-## 4. Preflight the candidate
+If `L_T` uses canonical value IDs, graph edges, typed instruction tuples, explicit
+states, or schedule objects, reason directly in those terms. Prefer the canonical
+encoding and do not invent aliases/sugar locally.
 
-Before spending an execution/test attempt, inspect the candidate for the cheap
-failure classes:
+The point of the experiment is to see whether the generated representation changes
+the model's search/reasoning behavior. A host-language solution written first and
+then transliterated into `L_T` invalidates that mechanism.
 
-- every operation is admitted by the capsule;
-- arities and intermediate types compose;
-- variables are in scope;
-- the final type matches the capsule output;
-- task-critical ordering/provenance invariants are visible in the dataflow;
-- obvious resource-expensive intermediates are understood;
-- the candidate is bound to the exact frozen capsule identity.
+## 4. Preflight before lowering
 
-For `intseq`, emit one `arl-program/0.1` JSON object with exactly
-`protocol`, `capsule_sha256`, and `expr`. Obtain the canonical capsule digest from a
-real tool or trusted supplied identity; never invent a hash.
+Check cheap structural obligations first:
 
-## 5. Use tools to answer specific questions
+- every opcode exists in frozen `L_T`;
+- operand/result references are valid and in scope;
+- types/shapes/states/effects/resources compose;
+- task-critical dependencies are represented explicitly;
+- the final language-level output matches the required interface;
+- every used instruction has an implemented lowering path;
+- the program is bound to the intended language revision.
 
-A compiler/checker/test runner is an engineering instrument, not a ritual. Before
-each tool call, know what uncertainty it should reduce.
+Use a real parser/checker if available. Do not claim a check that did not run.
+
+## 5. Lower only after the language program is coherent
+
+Translate the frozen task-language program through its declared lowering contract.
+The lowered artifact may be:
+
+- ordinary repository source code;
+- an AST or compiler IR;
+- calls to an existing library/API;
+- a stable Parallax semantic artifact such as `arl-program/0.1`;
+- a backend configuration/schedule;
+- an explicit repository transformation plan that deterministically produces source
+  edits.
+
+Inspect high-risk lowering points such as evaluation order, state transitions,
+resource lifetime, numerical association, shape/layout mapping, concurrency,
+exceptions/errors, and API semantics.
+
+A correct `L_T` program with incorrect host code is a lowering/implementation defect.
+Do not redesign the task to make it pass.
+
+## 6. Use tools by layer
 
 Useful questions include:
 
 ```text
-Does this candidate parse and typecheck against the exact capsule?
-What primitive IR does macro expansion produce?
-Which smallest input distinguishes my two algorithm hypotheses?
-Is the failure semantic, resource-related, or merely representational?
-Does the candidate agree with an independent reference on this boundary family?
-Which expression actually dominates work or intermediate magnitude?
+Does the task-language artifact parse canonically?
+Which instruction violates a type/shape/state rule?
+What host construct does this instruction lower to?
+Does a tiny differential case show lowering equivalence?
+Does the generated host source compile and integrate?
+Which runtime state transition actually fails?
+Which representation/schedule choice dominates time or memory?
+Does the external task oracle accept the resulting behavior?
 ```
 
-Run the cheapest discriminating check first. Broad randomized testing is valuable
-after the structural hypothesis is plausible; it is a poor substitute for a
-one-element counterexample that already identifies the broken ordering rule.
+Run the cheapest discriminating check first.
 
-## 6. Diagnose, do not thrash
-
-Use the loop:
+## 7. Diagnose without thrashing
 
 ```text
-observe exact result
-  -> localize the failing layer
-  -> form competing causes when necessary
-  -> choose the smallest discriminating experiment
-  -> repair root cause
-  -> re-evaluate the affected obligation
+observe
+ -> language parse/check?
+ -> algorithm in L_T?
+ -> lowering?
+ -> host implementation/backend?
+ -> resource/performance?
+ -> external task acceptance?
+ -> repair earliest failing layer
 ```
 
 | Observation | Primary hypothesis | Next move |
 |---|---|---|
-| schema/version rejection | artifact encoding/format | fix the document, not the task |
-| unavailable op / bad arity / type | local representation/dataflow | repair composition or scope |
-| capsule hash mismatch | stale/wrong identity | reload and explicitly rebind |
-| typechecks but task counterexample fails | algorithm/invariant | trace values and operation order |
-| resource rejection | representation/intermediate/policy cost | localize the expensive structure; seek a semantics-preserving allowed alternative |
-| unsupported backend/capability | environment boundary | report precise missing capability |
-| search budget exhausted | insufficient search evidence | stop honestly; do not infer unexpressibility |
+| parse/canonicalization failure | malformed `L_T` program | repair language encoding |
+| type/shape/state rejection | invalid instruction composition | repair operands/dataflow |
+| structurally valid but task counterexample fails | algorithm/invariant | trace `L_T` values/states |
+| language semantics and lowered source disagree | lowerer | isolate instruction translation |
+| host build/integration failure | lowering target/implementation | fix generated host artifact |
+| unsupported lowered capability | environment/backend | report precise capability gap |
+| runtime resource failure | algorithm/schedule/intermediate | profile and revise within `L_T` or next language revision |
+| repeated mistake caused by awkward language | representation | return evidence to synthesizer for next frozen `L_T` revision |
 
-A failed search is not a proof that the language cannot express the task. Bounded
-unexpressibility needs a complete finite search or another valid argument.
+A failed program search is not proof that no suitable task language can express the
+solution.
 
-## 7. Reason about performance only after preserving semantics
+## 8. Performance reasoning
 
-When performance matters, estimate the actual cost driver: asymptotic work, number
-and size of materialized intermediates, memory traffic/layout, synchronization,
-serialization, backend launches, or numerical precision. Optimize the bottleneck
-that the target exposes, not the prettiness of the expression.
+When performance matters, reason in the low-level dimensions `L_T` exposes: work,
+materialized values, layouts, memory traffic, allocation, vectorization, batching,
+synchronization, launches, I/O, precision, and schedule choices.
 
-Remember that mathematically equivalent programs can have different observable
-resource behavior under a concrete runtime. In `intseq`, eager evaluation,
-intermediate integer bounds, and work accounting make this explicit.
+Lowering must preserve the intended optimization. Benchmark the actual target only
+after correctness gates; language syntax alone cannot establish performance.
 
-## 8. Output contract
+## 9. Existing `intseq` artifacts
 
-Return the candidate program plus only evidence that actually exists. Distinguish:
+When the generated task language lowers into the repository's existing intseq
+artifacts, preserve their compatibility rules. `arl-program/0.1` still contains
+exactly its defined fields and binds the canonical capsule identity.
 
-- checker/admission results;
-- expansion/lowering results;
-- execution results;
-- task-oracle results;
-- performance measurements.
+The experimental language may sit above that format; it may not silently mutate the
+meaning of `intseq/0.1`.
 
-Do not turn one into another. If no acceptable candidate is found, return the most
-useful exact diagnostic: failed counterexample, resource/capability boundary, or
-budget exhaustion. Preserve uncertainty instead of fabricating execution, tests,
-benchmarks, or an unsupported semantic extension.
+## 10. Output
+
+For a measured experimental run, retain at least:
+
+- frozen task-language identity/definition;
+- program expressed in `L_T`;
+- lowering target and resulting host artifact;
+- actual parser/checker/lowering/build/execution/task evidence that exists;
+- important failure diagnostic if not accepted.
+
+Keep the record compact. The language program and resulting implementation are the
+substantive deliverables; process narration is not.
