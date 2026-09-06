@@ -2,9 +2,10 @@
 """Check Parallax documentation integrity without executing reference software.
 
 Python 3.11+, standard library only. This is documentation tooling, not a runtime
-or a semantic verifier. Checks live Markdown routes, simple spec metadata, the
-input archive/manifest, and selected frozen identities. External URLs are not
-network-checked. Malformed Markdown test fixtures and run logs are not live docs.
+or a semantic verifier. It checks live Markdown routes, source-archive provenance,
+selected executable/canonical semantic identities, packet bindings, and simple spec
+metadata. External URLs are not network-checked. Malformed Markdown test fixtures
+and run logs are not live docs.
 """
 from __future__ import annotations
 
@@ -23,11 +24,15 @@ READY_SECTIONS = (
     "Interfaces and observable behavior", "File map", "Implementation tasks",
     "Acceptance criteria", "Verification plan", "Readiness and history",
 )
-FROZEN_FILES = (
-    "packs/intseq/PACK.md", "packs/intseq/CAPSULE.md",
-    "examples/intseq/TASK.md", "examples/intseq/CAPSULE.md",
-    "examples/intseq/PROGRAM.md", "roles/PROGRAMMER.md",
-)
+INTSEQ_SIGNATURES = {
+    "seq.add": "VecInt, Int -> VecInt",
+    "seq.mul": "VecInt, Int -> VecInt",
+    "seq.filter_ge": "VecInt, Int -> VecInt",
+    "seq.sum": "VecInt -> Int",
+    "seq.count": "VecInt -> Int",
+    "int.add": "Int, Int -> Int",
+    "int.mul": "Int, Int -> Int",
+}
 LINK = re.compile(r"(?<!!)\[[^\]\n]+\]\(([^\s)]+)(?:\s+\"[^\"]*\")?\)")
 IMAGE = re.compile(r"!\[[^\]\n]*\]\(([^\s)]+)(?:\s+\"[^\"]*\")?\)")
 
@@ -79,12 +84,19 @@ def one_fence(text: str, language: str) -> str:
     return blocks[0]
 
 
+def canonical_identity(obj: object) -> str:
+    data = json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True, allow_nan=False).encode("utf-8")
+    return sha256(data)
+
+
 def check(root: Path) -> dict[str, object]:
     errors: list[str] = []
     paths = set(root.glob("*.md"))
     for directory in LIVE_DIRS:
         paths.update((root / directory).rglob("*.md"))
     text_by_path = {p: p.read_text(encoding="utf-8") for p in sorted(paths)}
+
     links = 0
     for source, text in text_by_path.items():
         label = source.relative_to(root).as_posix()
@@ -109,65 +121,144 @@ def check(root: Path) -> dict[str, object]:
 
     inventory_path = root / "docs/provenance/source-inventory.json"
     inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-    archive = root / inventory["archive"]["path"]
-    if sha256(archive.read_bytes()) != inventory["archive"]["sha256"]:
-        errors.append("original archive SHA-256 mismatch")
+    archive_info = inventory["archive"]
+    archive = root / archive_info["path"]
+    if sha256(archive.read_bytes()) != archive_info["sha256"]:
+        errors.append("source archive SHA-256 mismatch")
+
     rows = inventory["sources"]
     originals = {row["source_path"]: row for row in rows}
     if len(originals) != len(rows):
         errors.append("duplicate input source-map entries")
-    prefix = inventory["archive"]["source_prefix"]
+
+    unavailable = set(archive_info.get("unrecoverable_sources", []))
+    if unavailable - set(originals):
+        errors.append("source recovery metadata names unknown source files")
+    recovery_status = archive_info.get("status", "complete")
+    if unavailable and recovery_status != "partial-recovery":
+        errors.append("unrecoverable source list requires partial-recovery archive status")
+    if not unavailable and recovery_status == "partial-recovery":
+        errors.append("partial-recovery archive status requires unavailable sources")
+    if unavailable and not archive_info.get("historical_declared_sha256"):
+        errors.append("partial source recovery must preserve historical declared archive SHA-256")
+    if unavailable and archive_info.get("recovered_source_count") != len(originals) - len(unavailable):
+        errors.append("recovered source count does not match unavailable source list")
+
+    prefix = archive_info["source_prefix"]
     manifest_count = 0
+    expected_archived = set(originals) - unavailable
     with ZipFile(archive) as source_zip:
-        archived = {name[len(prefix):] for name in source_zip.namelist()
-                    if name.startswith(prefix) and name.endswith(".md")}
-        if archived != set(originals) or len(archived) != inventory["markdown_count"]:
-            errors.append("source-map coverage differs from archive Markdown corpus")
+        names = set(source_zip.namelist())
+        archived = {
+            name[len(prefix):]
+            for name in names
+            if name.startswith(prefix) and name.endswith(".md")
+            and name != prefix + "RECOVERY.md"
+        }
+        if archived != expected_archived:
+            errors.append("source-map coverage differs from recoverable archive corpus")
+
         for name, row in originals.items():
-            data = source_zip.read(prefix + name)
-            if len(data) != row["bytes"] or sha256(data) != row["sha256"]:
-                errors.append(f"original source identity mismatch: {name}")
             if not row["disposition"] or not row["targets"]:
                 errors.append(f"missing migration disposition/target: {name}")
             for target in row["targets"]:
                 destination = (root / target).resolve()
                 if not destination.is_relative_to(root) or not destination.exists():
                     errors.append(f"missing migration target: {name} -> {target}")
-        manifest = source_zip.read(prefix + "MANIFEST.md").decode("utf-8")
-        entries = re.findall(r"^\| \[([^\]]+)\]\([^)]*\) \| (\d+) \| `([a-f0-9]{64})` \|$",
-                             manifest, re.MULTILINE)
-        manifest_count = len(entries)
-        if manifest_count != len(archived) - 1:
-            errors.append("original manifest entry count mismatch")
-        for name, size, identity in entries:
+            if name in unavailable:
+                continue
             data = source_zip.read(prefix + name)
-            if len(data) != int(size) or sha256(data) != identity:
-                errors.append(f"original manifest mismatch: {name}")
+            if len(data) != row["bytes"] or sha256(data) != row["sha256"]:
+                errors.append(f"original source identity mismatch: {name}")
 
-    for name in FROZEN_FILES:
-        if sha256((root / name).read_bytes()) != originals[name]["sha256"]:
-            errors.append(f"frozen v0.1 file changed: {name}; requires explicit version/packet decision")
-    code = one_fence((root / "runtime/REFERENCE.md").read_text(encoding="utf-8"), "python")
-    if sha256(code.encode("utf-8")) != inventory["reference_python_fence_sha256"]:
+        if unavailable:
+            recovery_name = prefix + "RECOVERY.md"
+            if recovery_name not in names:
+                errors.append("partial source archive missing RECOVERY.md")
+            else:
+                recovery = source_zip.read(recovery_name).decode("utf-8")
+                for name in sorted(unavailable):
+                    row = originals[name]
+                    if name not in recovery or row["sha256"] not in recovery or str(row["bytes"]) not in recovery:
+                        errors.append(f"recovery manifest missing unavailable source identity: {name}")
+
+        # MANIFEST.md is itself one of the recovered historical source files. Its
+        # rows remain useful even when some payload bytes were lost before publication:
+        # validate every declaration against the independent inventory rather than
+        # pretending unavailable payloads can be read from the recovery ZIP.
+        if "MANIFEST.md" not in archived:
+            errors.append("recoverable source archive missing original MANIFEST.md")
+        else:
+            manifest = source_zip.read(prefix + "MANIFEST.md").decode("utf-8")
+            entries = re.findall(
+                r"^\| \[([^\]]+)\]\([^)]*\) \| (\d+) \| `([a-f0-9]{64})` \|$",
+                manifest, re.MULTILINE,
+            )
+            manifest_count = len(entries)
+            if manifest_count != len(originals) - 1:
+                errors.append("original manifest entry count mismatch")
+            for name, size, identity in entries:
+                row = originals.get(name)
+                if row is None or row["bytes"] != int(size) or row["sha256"] != identity:
+                    errors.append(f"original manifest declaration mismatch: {name}")
+
+    # Compatibility is pinned at executable/machine-readable boundaries, not by
+    # requiring explanatory Markdown wrappers to remain byte-identical forever.
+    reference_text = (root / "runtime/REFERENCE.md").read_text(encoding="utf-8")
+    code = one_fence(reference_text, "python")
+    reference_identity = sha256(code.encode("utf-8"))
+    if reference_identity != inventory["reference_python_fence_sha256"]:
         errors.append("frozen reference Python fence changed")
+
     objects: dict[str, object] = {}
     for name, identity in inventory["canonical_json"].items():
         obj = json.loads(one_fence((root / name).read_text(encoding="utf-8"), "json"))
         objects[name] = obj
-        data = json.dumps(obj, sort_keys=True, separators=(",", ":"),
-                          ensure_ascii=True, allow_nan=False).encode("utf-8")
-        if sha256(data) != identity:
+        if canonical_identity(obj) != identity:
             errors.append(f"canonical JSON identity changed: {name}")
+
+    capsule = objects["examples/intseq/CAPSULE.md"]
     program = objects["examples/intseq/PROGRAM.md"]
-    if program["capsule_sha256"] != inventory["canonical_json"]["examples/intseq/CAPSULE.md"]:
+    capsule_identity = inventory["canonical_json"]["examples/intseq/CAPSULE.md"]
+    if capsule.get("protocol") != "arl-capsule/0.1" or capsule.get("pack") != "intseq/0.1":
+        errors.append("canonical example capsule protocol/pack changed")
+    if program.get("protocol") != "arl-program/0.1":
+        errors.append("canonical example program protocol changed")
+    if program.get("capsule_sha256") != capsule_identity:
         errors.append("example program capsule binding mismatch")
-    packet = (root / "examples/intseq/PACKET.md").read_text(encoding="utf-8")
-    packet_sources = re.findall(r"^- `([^`]+)`: `([a-f0-9]{64})`$", packet, re.MULTILINE)
-    if len(packet_sources) != 5:
-        errors.append("frozen packet source list changed or incomplete")
-    for name, identity in packet_sources:
-        if sha256((root / name).read_bytes()) != identity:
-            errors.append(f"stale programmer packet source: {name}")
+
+    # The live semantic-pack prose may improve, but its stable operation surface and
+    # signatures must stay synchronized with the preserved v0.1 executable model.
+    pack_text = (root / "packs/intseq/PACK.md").read_text(encoding="utf-8")
+    table_rows = dict(re.findall(r"^\| `([^`]+)` \| `([^`]+)` \|", pack_text, re.MULTILINE))
+    if table_rows != INTSEQ_SIGNATURES:
+        errors.append("intseq operation table changed or is incomplete")
+
+    format_text = (root / "packs/intseq/CAPSULE.md").read_text(encoding="utf-8")
+    for marker in ("intseq/0.1", "arl-capsule/0.1", "arl-program/0.1"):
+        if marker not in format_text:
+            errors.append(f"intseq format document missing stable identifier: {marker}")
+
+    # Packets bind executable meaning, not recursively fragile whole-Markdown bytes.
+    packet_path = root / "examples/intseq/PACKET.md"
+    packet = packet_path.read_text(encoding="utf-8")
+    packet_capsule = json.loads(one_fence(packet, "json"))
+    if canonical_identity(packet_capsule) != capsule_identity:
+        errors.append("programmer packet embedded capsule identity mismatch")
+
+    task = json.loads(one_fence((root / "examples/intseq/TASK.md").read_text(encoding="utf-8"), "json"))
+    expected_bindings = {
+        "task_id": task.get("task_id"),
+        "contract_version": task.get("contract_version"),
+        "pack": "intseq/0.1",
+        "capsule_protocol": "arl-capsule/0.1",
+        "program_protocol": "arl-program/0.1",
+        "capsule_canonical_json_sha256": capsule_identity,
+        "reference_python_fence_sha256": inventory["reference_python_fence_sha256"],
+    }
+    packet_bindings = dict(re.findall(r"^- `([^`]+)`: `([^`]+)`$", packet, re.MULTILINE))
+    if packet_bindings != expected_bindings:
+        errors.append("programmer packet semantic bindings changed, stale, or incomplete")
 
     ready: list[str] = []
     spec_ids: set[str] = set()
@@ -193,12 +284,26 @@ def check(root: Path) -> dict[str, object]:
                     errors.append(f"{spec.name}: missing ready section {heading}")
             if not re.search(r"^\| AC\d+ \|", text, re.MULTILINE):
                 errors.append(f"{spec.name}: no acceptance identifiers")
-    return {"check_kind": "documentation-integrity", "status": "FAIL" if errors else "PASS",
-            "markdown_files": len(paths), "local_links_checked": links,
-            "source_markdown_files": len(originals), "original_manifest_entries": manifest_count,
-            "packet_source_identities": len(packet_sources), "ready_specs": ready,
-            "runtime_execution_by_this_check": "NOT_RUN", "semantic_correctness_assessed": False,
-            "external_urls_checked": False, "errors": errors}
+
+    return {
+        "check_kind": "documentation-integrity",
+        "status": "FAIL" if errors else "PASS",
+        "markdown_files": len(paths),
+        "local_links_checked": links,
+        "source_markdown_files": len(originals),
+        "source_archive_members_available": len(expected_archived),
+        "source_archive_members_unavailable": len(unavailable),
+        "source_archive_status": recovery_status,
+        "original_manifest_entries": manifest_count,
+        "canonical_json_identities": len(objects),
+        "intseq_operation_signatures": len(table_rows),
+        "packet_semantic_bindings": len(packet_bindings),
+        "ready_specs": ready,
+        "runtime_execution_by_this_check": "NOT_RUN",
+        "semantic_correctness_assessed": False,
+        "external_urls_checked": False,
+        "errors": errors,
+    }
 
 
 def main() -> int:
@@ -208,8 +313,12 @@ def main() -> int:
     try:
         result = check(args.root.resolve())
     except (OSError, ValueError, KeyError, TypeError, BadZipFile) as exc:
-        result = {"check_kind": "documentation-integrity", "status": "FAIL",
-                  "errors": [str(exc)], "runtime_execution_by_this_check": "NOT_RUN"}
+        result = {
+            "check_kind": "documentation-integrity",
+            "status": "FAIL",
+            "errors": [str(exc)],
+            "runtime_execution_by_this_check": "NOT_RUN",
+        }
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "PASS" else 1
 

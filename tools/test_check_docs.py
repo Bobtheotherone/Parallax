@@ -45,23 +45,56 @@ class DocumentationCheckerTests(unittest.TestCase):
         self.assertEqual(code, 0, report)
         self.assertEqual(report["status"], "PASS")
         self.assertFalse(report["semantic_correctness_assessed"])
+        self.assertEqual(report["intseq_operation_signatures"], 7)
+        self.assertEqual(report["packet_semantic_bindings"], 7)
 
     def test_missing_local_link(self) -> None:
         self.append("README.md", "\n[missing](does-not-exist.md)\n")
         self.rejects("missing/outside-root link")
 
-    def test_frozen_pack_drift(self) -> None:
-        self.append("packs/intseq/PACK.md", "\nUnapproved semantic revision.\n")
-        self.rejects("frozen v0.1 file changed")
+    def test_live_pack_prose_can_evolve(self) -> None:
+        self.append("packs/intseq/PACK.md", "\nClarifying prose that changes no stable interface.\n")
+        code, report = self.run_checker()
+        self.assertEqual(code, 0, report)
+        self.assertEqual(report["status"], "PASS")
+
+    def test_pack_signature_drift(self) -> None:
+        file = self.root / "packs/intseq/PACK.md"
+        text = file.read_text(encoding="utf-8")
+        old = "| `seq.add` | `VecInt, Int -> VecInt` |"
+        new = "| `seq.add` | `Int, Int -> VecInt` |"
+        self.assertIn(old, text)
+        file.write_text(text.replace(old, new, 1), encoding="utf-8")
+        self.rejects("intseq operation table changed or is incomplete")
 
     def test_changed_reference_fence(self) -> None:
         file = self.root / "runtime/REFERENCE.md"
-        file.write_text(file.read_text().replace("MAX_WORK = 250_000", "MAX_WORK = 250_001"))
+        file.write_text(file.read_text(encoding="utf-8").replace(
+            "MAX_WORK = 250_000", "MAX_WORK = 250_001", 1), encoding="utf-8")
         self.rejects("frozen reference Python fence changed")
+
+    def test_changed_canonical_capsule(self) -> None:
+        file = self.root / "examples/intseq/CAPSULE.md"
+        text = file.read_text(encoding="utf-8")
+        old = '  "output": "Int",'
+        new = '  "output": "VecInt",'
+        self.assertIn(old, text)
+        file.write_text(text.replace(old, new, 1), encoding="utf-8")
+        self.rejects("canonical JSON identity changed")
+
+    def test_changed_packet_semantic_binding(self) -> None:
+        file = self.root / "examples/intseq/PACKET.md"
+        text = file.read_text(encoding="utf-8")
+        old = "- `capsule_protocol`: `arl-capsule/0.1`"
+        new = "- `capsule_protocol`: `arl-capsule/0.2`"
+        self.assertIn(old, text)
+        file.write_text(text.replace(old, new, 1), encoding="utf-8")
+        self.rejects("programmer packet semantic bindings changed")
 
     def test_invalid_spec_state(self) -> None:
         file = self.root / "docs/specs/001-intseq-reference.md"
-        file.write_text(file.read_text().replace("status: ready-for-dev", "status: almost-ready"))
+        file.write_text(file.read_text(encoding="utf-8").replace(
+            "status: ready-for-dev", "status: almost-ready", 1), encoding="utf-8")
         self.rejects("invalid/duplicate spec identity or status")
 
     def test_unclosed_fence(self) -> None:
@@ -70,9 +103,11 @@ class DocumentationCheckerTests(unittest.TestCase):
 
     def test_missing_source_map_entry(self) -> None:
         file = self.root / "docs/provenance/source-inventory.json"
-        inventory = json.loads(file.read_text())
-        inventory["sources"] = [row for row in inventory["sources"] if row["source_path"] != "README.md"]
-        file.write_text(json.dumps(inventory))
+        inventory = json.loads(file.read_text(encoding="utf-8"))
+        inventory["sources"] = [
+            row for row in inventory["sources"] if row["source_path"] != "README.md"
+        ]
+        file.write_text(json.dumps(inventory), encoding="utf-8")
         self.rejects("source-map coverage differs")
 
 

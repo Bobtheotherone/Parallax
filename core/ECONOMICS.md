@@ -1,43 +1,111 @@
-# Adaptation economics
+# Adaptation economics: spend complexity where it buys capability
 
-Do not minimize operation count. Minimize total cost at a fixed acceptance policy,
-or maximize the probability of an acceptable result within a fixed total budget.
-Use deployment latency only after correctness and required evidence gates pass.
+Parallax should optimize engineering outcomes, not operation count, prompt
+novelty, or process completion. Representation work is worthwhile only when it
+improves the probability or quality of an acceptable solution enough to repay its
+construction, learning, validation, and maintenance cost.
+
+A useful objective is:
 
 ```text
-total_cost = contract_work + retrieval + capsule_search + tutorials
-           + all_program_attempts + repairs + solver_and_compiler_work
-           + tests_and_proofs + failed_attempts + deployment_cost
+engineering_value ≈ P(acceptable result within budget)
+                    × solution_quality
+                    × reuse_or_performance_leverage
+                    -------------------------------------------------
+                    total_design_search_tooling_verification_cost
 ```
 
-One-time pack/engine construction is reported separately and also in a cold-start
-accounting. Warm reuse may amortize that cost, but cannot erase it. Count full
-macro bodies and their development; a call to SOLVE_TASK is not free intelligence.
-A whole-task macro is legitimate algorithm synthesis, just not evidence that the
-programming model solved the task cheaply on its own.
+The factors need not be collapsed into one score in measurements. The formula is
+a decision aid: a tiny program is not cheap if a large hidden macro, compiler, or
+search process had to be invented first.
 
-## Decision rule
+## Full cost
 
-Choose adaptation when its estimated benefit exceeds design, instruction,
-validation, and maintenance costs under the actual remaining budget. When evidence
-is weak, prefer a familiar existing DSL/API or run a capped pilot. An already
-suitable library can be better than any newly invented language.
+Count work wherever it occurs:
 
-Do not give the adapted route an unlimited search team and compare it with a
-single-shot direct baseline. Account for total tokens, money, elapsed time, and
-host compute separately rather than hiding tradeoffs in a single number.
+```text
+total_cost = task_understanding
+           + repository/retrieval/tool use
+           + representation design and acquisition
+           + all candidate generation and repair
+           + compiler/solver/backend work
+           + verification and performance measurement
+           + failed attempts
+           + deployment/runtime cost
+```
 
-## Search measurements
+Report model usage, money, wall time, host compute, and human effort separately
+when they matter; they trade off differently. Parallel work can reduce latency
+without reducing summed compute or inference cost.
 
-Measure success probability per fixed budget, time-to-acceptable-result, false
-acceptance, grammar/type failure rate, functional failure rate, repair count, and
-semantic dependency footprint. Track cold and warm runs separately.
+Keep **cold** costs (new pack/backend/capsule construction) separate from **warm**
+reuse costs. State the reuse horizon before claiming amortization.
 
-A low next-token entropy is not the objective: one confidently wrong output has
-zero entropy. The useful quantity is probability mass assigned to acceptable
-solutions after paying the full cost. Entropy and description length may be
-secondary diagnostics, but comparisons require a fixed measurement protocol.
+## Choose the cheapest interface that exposes the right structure
 
-Program counts are also misleading without a length bound and an equivalence
-notion. Infinitely many padded copies of one algorithm are not strategy diversity.
-Predeclare meaningful implementation families or use held-out task variation.
+Prefer, in order of increasing adaptation cost, whichever route is technically
+strongest for the task:
+
+| Route | Good default when | Warning sign |
+|---|---|---|
+| Direct code | The native language already exposes the relevant structure and the solution is short or familiar | Repeated semantic mistakes or huge irrelevant API/search surface |
+| Existing library/API | A mature abstraction already owns the hard algorithm, protocol, or hardware behavior | Wrapper code starts rebuilding the library's semantics |
+| Fixed typed/schema interface | The domain benefits from constrained construction across many tasks | The interface hides decisions the task must still make |
+| Restricted capsule | Selecting a small subset materially reduces invalid choices or context | Restriction removes common useful strategies |
+| New compositional macro | A reusable pattern compresses repeated reasoning while preserving inspectable semantics | The macro simply hides a one-off whole solution whose construction is not counted |
+| New primitive/backend | The required meaning or implementation capability truly does not exist | A local program bug is being misdiagnosed as a language deficiency |
+
+Representation leverage is high when the interface makes important invariants hard
+to violate, exposes the right decomposition, or moves recurring expert work into a
+reusable checked implementation. It is low when it merely renames operations.
+
+## Spend the next unit of budget on information
+
+During implementation or debugging, choose tools by expected information gain.
+A compiler error, minimal reproducer, profiler sample, static-analysis finding,
+differential check, or targeted benchmark is valuable when it discriminates
+between plausible hypotheses and changes the next action.
+
+Prefer one experiment that distinguishes two likely root causes over ten redundant
+tests that all exercise the same path. Do not run a tool because a checklist says
+to; know the question it should answer.
+
+A useful budgeting loop is:
+
+```text
+remaining uncertainty -> highest-value question -> cheapest reliable instrument
+                      -> update design/search -> repeat
+```
+
+Stop adding machinery when the marginal reduction in engineering risk is smaller
+than the cost and maintenance burden it introduces.
+
+## Compare routes fairly
+
+For research or selection decisions, compare routes under the same frozen task and
+acceptance policy. Give strong baselines realistic tools and repair budgets. A good
+library is a competitor, not something to withhold so a generated DSL looks better.
+
+Measure at least what is needed to answer the decision:
+
+- acceptable-result rate within the declared budget;
+- time/cost to an acceptable result;
+- false acceptance when a stronger later check exposes it;
+- failure class and repair count when recoverability matters;
+- context/semantic dependency footprint when interface compression is the claim;
+- target performance only for functionally accepted implementations.
+
+Grammar-valid rate, test count, token entropy, source length, or number of distinct
+spellings are diagnostics, not the product. Infinitely many padded programs do not
+create strategy diversity.
+
+## Performance economics
+
+When performance is part of the task, reason about the real bottleneck: asymptotic
+work, memory traffic/layout, allocations, cache behavior, vectorization, batching,
+serialization, I/O, synchronization, contention, numerical format, and CPU/GPU
+boundaries as applicable. Measure on the actual target after correctness gates.
+
+A representation can justify its cost by exposing optimization decisions cleanly—for
+example, separating a reduction's semantic scope from a backend schedule—but the
+speedup belongs to the implemented and measured backend, not to the syntax alone.

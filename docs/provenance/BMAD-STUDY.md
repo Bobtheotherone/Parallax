@@ -1,36 +1,19 @@
-# BMAD methodological study
+# BMAD methodological study — historical influence
 
-**Consumer:** maintainer reviewing why the context/development system is shaped
-this way. This is provenance, not another agent instruction layer.
+This document records what the 2026-09-05 bootstrap studied in BMAD and which ideas influenced Parallax. It is provenance, not an instruction to run BMAD or reproduce its workflow structure.
 
-## Source pin and scope
+## Source pin and method
 
-Repository: `bmad-code-org/BMAD-METHOD`. Default branch studied: `main`.
-Commit: **`beb368e5fc9b95bcec5e1de5bc7870dc15bece72`**.
-[Commit source](https://github.com/bmad-code-org/BMAD-METHOD/tree/beb368e5fc9b95bcec5e1de5bc7870dc15bece72).
-The default-branch head was read through GitHub and rechecked at the same SHA.
-No BMAD repository write, installation, workflow execution, or runtime dependency
-was introduced.
+- Repository: `bmad-code-org/BMAD-METHOD`
+- Default branch studied: `main`
+- Pinned commit: **`beb368e5fc9b95bcec5e1de5bc7870dc15bece72`**
+- Source: [pinned GitHub tree](https://github.com/bmad-code-org/BMAD-METHOD/tree/beb368e5fc9b95bcec5e1de5bc7870dc15bece72)
 
-The recursive Git tree was enumerated first. Canonical English methodology was
-read from repository instructions, `docs/`, and `skills/`, including actual
-Markdown templates, step files, reviewer prompts, schemas, and relevant TOML
-persona/customization definitions—not only marketing documentation. The study
-covered project context, planning/requirements/architecture/specs, implementation,
-autonomous single-unit workers, review/verification, status transitions,
-retrospectives, existing-codebase work, routing, and documentation style. Related
-analysis/UX/elicitation/research skills were read to understand artifact boundaries,
-not to import them into Parallax.
+The bootstrap enumerated the recursive Git tree, then read the canonical English methodology across repository instructions, `docs/`, and `skills/`, including Markdown templates, step files, review prompts, schemas, and relevant TOML persona/customization definitions. The study covered project context, requirements/specification, architecture, implementation, autonomous single-unit work, review/verification, lifecycle state, retrospectives, existing-codebase work, routing, and documentation style.
 
-Translated READMEs (`README_CN.md`, `README_KR.md`, `README_VN.md`) were identified
-as translations rather than separate authorities. Release history, governance,
-test fixtures/example outputs, and derived web-bundle distribution material were
-not treated as independent definitions of the current development methodology.
-The canonical English source, not a translated/packaged duplicate, governs the
-lessons below. This was a methodology reading, not an audit or execution of BMAD's
-installer and implementation scripts, and not evidence of its efficacy.
+Translated READMEs (`README_CN.md`, `README_KR.md`, `README_VN.md`) were recognized as translations rather than separate methodological authorities. Release history, governance material, fixtures/example outputs, and derived web-bundle distribution artifacts were not treated as independent definitions of the current method.
 
-The corpus enumeration is reproducible independently:
+No BMAD repository write, installation, workflow execution, or runtime dependency was introduced. The bootstrap environment could not perform the network clone shown below, so the study used GitHub reads against the pinned commit instead. The commands remain a reproducible way for a later reader to enumerate the Markdown corpus:
 
 ```sh
 git clone https://github.com/bmad-code-org/BMAD-METHOD.git bmad-study
@@ -38,36 +21,42 @@ git -C bmad-study checkout --detach beb368e5fc9b95bcec5e1de5bc7870dc15bece72
 git -C bmad-study ls-tree -r --name-only HEAD -- '*.md'
 ```
 
-Those commands describe a reproduction route; network clone was unavailable in
-the bootstrap container, so this study used GitHub reads instead.
+This was a methodology reading, not an audit of BMAD's implementation and not evidence that its process improves engineering outcomes.
 
-## What Parallax adopts
+## Ideas that survived into Parallax
 
-| Lesson | Studied canonical sources | Parallax application |
+The useful lessons were mechanisms, not ceremony.
+
+| Studied idea | Engineering value retained in Parallax | Representative source |
 |---|---|---|
-| Ambient context must earn its cost; route local facts | [AGENTS](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/AGENTS.md), [project-context skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-project-context/SKILL.md), [context maintenance](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/existing-codebases/set-and-maintain-project-context.md) | Compact AGENTS; START and activity routes; research is optional |
-| Intent and execution are distinct contracts | [spec skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-spec/SKILL.md), [requirements/spec guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/plan/define-requirements-and-a-specification.md), build spec templates | PROJECT defines what/why; one bounded spec defines observable behavior and exclusions |
-| Architecture records non-obvious cross-unit decisions | [architecture skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-architecture/SKILL.md), its spine templates, [architecture guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/plan/design-ux-and-architecture.md) | One authority map and three meaningful ADRs; no decision record for every file |
-| Lifecycle state belongs in a durable implementation record | [build skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-build/SKILL.md), [autonomous loop guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/autonomous-development-loops.md), actual build/build-auto templates and step files | Spec frontmatter owns state; append revision/evidence history; blocked is legitimate |
-| Review must test intent and changed behavior, not just style | [code-review skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-code-review/SKILL.md), its review prompts, [review guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/review-a-change.md) | Acceptance mapping, concrete findings and dispositions; missing evidence stays missing |
-| Verification, human understanding, and aggregate learning are different | [test guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/test-completed-work.md), [walkthrough](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/walk-through-a-change.md), [retrospective](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-retrospective/SKILL.md) | Distinct test evidence, review, and targeted lessons; no transcript in AGENTS |
-| A worker episode is not a backlog scheduler | [build-auto source](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-build-auto/SKILL.md), [autonomous guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/autonomous-development-loops.md) | Start one spec; do not autonomously execute the roadmap |
-| Existing files are evidence; planning must not invent a greenfield state | [existing-codebase guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/existing-codebases/getting-deeper.md), [planning paths](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/plan/choose-a-planning-path.md) | Inspect actual tree, separate embedded source from planned package, preserve user edits |
+| Route ambient context instead of loading everything | Reduces irrelevant context while preserving task-critical semantics; `START.md`/`ROUTES.md` provide task-directed entry | [project-context skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-project-context/SKILL.md) |
+| Separate intent from bounded implementation contract | Lets an implementer reason from observable behavior/invariants instead of a project essay | [spec skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-spec/SKILL.md) |
+| Record architecture only for consequential cross-cutting choices | Preserves dependency/trust/compatibility reasoning without an ADR for every local choice | [architecture skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-architecture/SKILL.md) |
+| Treat existing code/files as evidence | Prevents greenfield plans that invent nonexistent components or erase compatibility constraints | [existing-codebase guidance](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/existing-codebases/getting-deeper.md) |
+| Review behavior and intent, not only style | Directs attention to contract failures, state/dataflow, regressions, and concrete consequences | [code-review skill](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/skills/bmad-code-review/SKILL.md) |
+| Keep testing, human review, and aggregate learning conceptually distinct | Prevents a test pass, walkthrough, or retrospective from masquerading as the same kind of evidence | [test guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/test-completed-work.md) |
+| Scope an autonomous worker to one bounded unit | Supports high agency without turning one coding episode into an unsupervised backlog scheduler | [autonomous-loop guide](https://github.com/bmad-code-org/BMAD-METHOD/blob/beb368e5fc9b95bcec5e1de5bc7870dc15bece72/docs/build/autonomous-development-loops.md) |
 
-## What Parallax deliberately does not import
+These ideas aligned with constraints already present in the adaptive-representations source: stable task meaning, routed context, bounded episodes, explicit evidence, and separation of task acceptance from internal checking.
 
-No `_bmad` directory, workflow installation, persona cast, custom skill loader,
-sprint database, broad persistent-facts layer, or BMAD-specific file-writer rule
-is needed for this repository. Spec status is enough machine state for one task.
-No automatic rollback may erase user work or failed-run history. A blocked spec
-is resumed through a recorded resolution, not deletion of the record.
+## What Parallax deliberately did not import
 
-Some review prompts request a minimum finding count. Parallax does not: findings
-need evidence; zero findings is possible. Multiple personas or fresh model sessions
-are not an independent task oracle. Generated tests from existing code cannot
-replace separately specified expected behavior. These departures preserve the
-source archive's stronger evidence and authority boundaries.
+The bootstrap did **not** install or copy BMAD's workflow implementation. It did not add an `_bmad` tree, persona cast, custom skill loader, sprint database, or broad persistent-facts layer. BMAD is not a runtime or development dependency of Parallax.
 
-The result is a small Parallax-specific system informed by BMAD's distinctions,
-not a copy of its workflow implementation or a claim that its methods have already
-been validated here.
+Several methodological choices were also rejected or narrowed:
+
+- no mandatory role-playing/persona stack for repository development;
+- no minimum review-finding quota;
+- no requirement to create PRDs, ADRs, or status artifacts for reversible local choices;
+- no automatic rollback that can erase user work or failed evidence;
+- no assumption that another model persona supplies independent ground truth;
+- no generated test suite accepted as an external task oracle merely because it is separate text;
+- no worker authority to advance unrelated roadmap items after finishing its requested unit.
+
+Later Parallax guidance may compress process further when a step does not change an engineering decision. That is compatible with this historical study: the point was to retain useful distinctions, not the shape of BMAD's ceremony.
+
+## Lasting interpretation
+
+The strongest BMAD-derived idea for Parallax is that **context and process are interfaces to cognition**. They should expose the decisions that improve implementation quality and remove the ones that merely consume attention.
+
+Parallax therefore uses routing, bounded specs, architecture decisions, and evidence distinctions as tools when they reduce search space or protect correctness. None is valuable because a methodology says it must exist. This study records the source of those influences; the current Parallax documents own their present behavior.

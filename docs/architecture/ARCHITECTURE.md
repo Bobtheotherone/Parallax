@@ -1,106 +1,343 @@
-# Architecture: stable meaning, adaptive interface
+# Architecture: stable semantics, adaptive engineering interfaces
 
-**Consumer:** implementers and reviewers. **Status:** adopted design boundaries;
-only the embedded intseq reference currently supplies product implementation code.
-This document describes intended responsibilities, not deployed components.
+This document defines the target dependency structure and implementation boundaries
+for Parallax. It is written for implementers: components should exist because they
+own a technical responsibility, not because a workflow diagram needs another box.
 
-## Information and authority flow
+**Current state:** only documentation, the embedded `intseq` reference, examples,
+and documentation tooling exist. The host and most components below are target
+architecture until implemented by explicit specs.
+
+## System shape
 
 ```text
-requirement owner -> frozen task + acceptance policy -----------+
-                                                               v
-external host -> pinned capabilities + budget -> generator -> capsule/program DATA
-      |                                                        |
-      |                             parser -> admission/type checker
-      |                                                        |
-      |                           hygienic expansion -> primitive IR
-      |                                                        |
-      |                           pinned interpreter/backend -> result
-      |                                                        |
-      +-> external task oracle + task-domain enforcement <------+
-      +-> evidence, diagnostics, cost ledger -> next bounded step
+Requirement / repository state
+          |
+          v
++---------------------+
+| Task + Problem Model|  invariants, domain, effects, numerics, constraints,
++---------------------+  failure surface, acceptance
+          |
+          v
++---------------------+       Semantic packs / existing libraries / tools
+| Representation Plan |<-----------------------------------------------+
++---------------------+                                                |
+   | direct/library/fixed/capsule                                      |
+   +--------------------------+                                        |
+                              v                                        |
+                    +------------------+                               |
+                    | Candidate        |  code or data program          |
+                    +------------------+                               |
+                              |                                        |
+                    +------------------+       +--------------------+   |
+                    | Check / Lower    |------>| Primitive IR       |---+
+                    +------------------+       +--------------------+
+                              |                         |
+                              | diagnostics             v
+                              |                +--------------------+
+                              +--------------->| Runtime / Backend  |
+                                               +--------------------+
+                                                        |
+                                                        v
+                                               Execution Observation
+                                                        |
+                            +---------------------------+------------------+
+                            |                                              |
+                            v                                              v
+                    +------------------+                          +----------------+
+                    | External Task    |                          | Evidence / Cost|
+                    | Acceptance       |                          | + Diagnostics  |
+                    +------------------+                          +----------------+
+                            |                                              |
+                            +-------------------+--------------------------+
+                                                v
+                                         Host decision loop
+                                  repair | replan | accept | stop
 ```
 
-The task oracle does not derive expected answers from the generated capsule.
-Only public diagnostics allowed by the experiment may return to the generator.
-A checked lowering and a task-acceptable result remain distinct outputs.
+Generated candidates can influence future decisions through diagnostics. They do
+not acquire the authority of the host, semantic pack, backend, or final acceptance
+mechanism.
+
+## Core data contracts
+
+The host should pass small explicit artifacts between components. Concrete schemas
+can evolve, but the conceptual separation should remain:
+
+```text
+TaskContract
+  domain, required observations, effects/errors/numerics,
+  environment/constraints, acceptance policy, revision identity
+
+ProblemModel
+  hard invariants, degrees of freedom, unknowns, failure surface,
+  relevant repository/components, candidate implementation families
+
+RepresentationPlan
+  route = direct | library | fixed | capsule
+  semantic dependencies, exposed decisions, hidden/reused machinery,
+  expected leverage, acquisition/validation cost
+
+Candidate
+  source/program + representation/capsule binding + dependency identities
+
+Diagnostic
+  boundary/component, failure class, observation, implicated invariant,
+  next discriminating experiment when known
+
+ExecutionResult
+  value/output, errors/effects/resource outcome, runtime/backend identity
+
+AcceptanceResult
+  accepted/rejected/unknown under named policy + claim-scoped evidence
+```
+
+Avoid turning every artifact into a verbose persistent form. Materialize only what
+must cross a component boundary, survive a run, or support reproducibility.
 
 ## Components and dependency direction
 
-| Component | Owns | Does not own |
-|---|---|---|
-| Task contract and owner | Intended observations, input domain, error/numerical policy, acceptance policy, approved revisions | Convenient reinterpretations by implementation |
-| Semantic pack | Stable operation IDs, types, mathematical behavior, reference resource policy | A universal semantics for other domains |
-| Capsule/program data | Selection of existing operations and typed compositional macros; capsule identity binding | Executable source, arbitrary privileges, new primitive authority |
-| Parser/checker/expander | Document/schema admission, signatures/scope, bounded hygienic lowering, recheck of primitive IR | Whether the requested algorithm is correct |
-| Interpreter/backend | Defined primitive behavior under its pinned resource/numerical policy | Task intent, LLM search, acceptance policy |
-| Host (not implemented) | Trusted pack/backend selection, file/tool capabilities, task-domain enforcement, budgets, context routing, oracle access, evidence retention | Delegation of its authority to generated data |
-| External acceptance mechanism | Expected observations under the frozen task | Merely reproducing the candidate's own computation |
+### 1. Task and problem model
 
-The initial runtime is a local standard-library Python package, specified by
-[SPEC-001](../specs/001-intseq-reference.md), extracted from the reference rather
-than a redesign. Its evaluator must not depend on an LLM provider, task-specific
-oracle, research document, or orchestration framework. The CLI is an adapter
-around the semantic library; public self-test logic is separate from evaluation.
-There is no package publishing/build backend decision in this first slice.
+Owns the frozen externally meaningful problem: domain, observations, errors,
+effects, numerical/resource constraints, compatibility, acceptance, and high-risk
+unknowns. It may summarize repository structure but does not own implementation.
 
-For intseq, the stable IR is a typed tree of seven primitives, not a native
-compiler IR. Future domains must define their own observations, numerical
-relations, effects, and dependency boundaries before sharing any container.
+It must not depend on a candidate program. Candidate failures may reveal a contract
+ambiguity, but changing an output-affecting contract creates a deliberate new
+revision rather than retroactively making the candidate correct.
+
+### 2. Representation planner
+
+Chooses the strongest low-cost interface for this model/task/environment. Its search
+space includes direct native code, existing libraries/APIs, fixed typed interfaces,
+restricted packs, and capsules. It should prefer reuse over novelty.
+
+The planner reasons about:
+
+- which decisions the model should make versus trusted machinery should discharge;
+- which invariants can become structural;
+- semantic dependency/context footprint;
+- model acquisition cost and familiarity;
+- implementation/backend availability;
+- expected search reduction and reuse horizon.
+
+It proposes interfaces; it cannot introduce trusted semantics by assertion.
+
+### 3. Capsule admission / representation compiler
+
+For capsule routes, parses supported structured data, verifies operation selection,
+signatures/scope/types, checks macros/compositions, enforces bounded expansion, and
+lowers to stable pack-level IR. Expansion is rechecked.
+
+The current intseq contract remains the exact `arl-capsule/0.1` /
+`arl-program/0.1` format in [packs/intseq/CAPSULE.md](../../packs/intseq/CAPSULE.md).
+Future representation features should be versioned when behavior changes.
+
+### 4. Candidate generator
+
+Produces code/programs against the frozen task and chosen interface. It may use
+public diagnostics and permitted tools. It does not own the task contract, pack
+semantics, capability grants, checker, backend, or final oracle.
+
+For repository coding, the candidate can be an ordinary source diff rather than a
+capsule program. Parallax's architectural ideas should improve native coding too.
+
+### 5. Tool broker
+
+The host-facing capability boundary for compilers, interpreters, shell, repository
+search, debuggers, profilers, static analyzers, benchmarks, external services, and
+other tools. Each tool invocation runs with explicit host-granted authority.
+
+The broker should return structured observations sufficient for diagnosis and cost
+accounting, while preserving raw logs only when they are useful for reproducibility
+or review. Tool availability must never be inferred from generated prose.
+
+### 6. Runtime/backend
+
+Implements semantic pack operations or executes native candidates in the intended
+environment. It owns operational details such as resource checks, numerical
+formats, schedules, memory layout, device code, synchronization, and I/O adapters
+only to the extent defined by its interface.
+
+Backends may optimize aggressively, but their observations must remain within the
+semantic relation specified by the pack/task. Performance claims belong to measured
+backend artifacts on the actual target.
+
+### 7. External task acceptance
+
+Evaluates task satisfaction independently from structural program checking. It may
+be tests, a compatibility oracle, reference path, formal checker, human review,
+target measurement, or a combination.
+
+Final held-out material must remain outside candidate read/write authority when a
+held-out claim is made. Development diagnostics can be public; final acceptance
+need not be.
+
+### 8. Evidence/cost store
+
+Retains the small set of identities, observations, counterexamples, tool results,
+and costs needed to understand the outcome, compare routes, or resume diagnosis.
+It is not an append-only bureaucracy for every thought.
+
+### 9. Host decision loop
+
+Owns orchestration: freeze dependencies, route context, grant capabilities, choose
+or request a representation, schedule attempts/tools, enforce budgets/cancellation,
+protect final acceptance, and decide whether to repair, replan, accept, or stop.
+
+The host should implement the diagnostic loop in [PROTOCOL](../../core/PROTOCOL.md),
+not merely enumerate states.
+
+## State ownership and mutation
+
+Keep authoritative mutation local:
+
+- task owner/contract revision owns task semantics;
+- pack version owns primitive meanings;
+- capsule identity owns one admitted representation;
+- candidate revision owns source/program bytes;
+- runtime/backend version owns implementation behavior;
+- acceptance policy/oracle identity owns the decision procedure;
+- host run state owns budget, granted capabilities, diagnostics, and attempt history.
+
+A component may reference another component's identity but should not silently
+rewrite its state. This makes failures localizable and parallel attempts safe.
+
+## Concurrency and parallel attempts
+
+Independent candidate/tool attempts may run concurrently when they share immutable
+contract/semantic snapshots. Sum their compute/inference cost even when wall time
+overlaps. Keep per-attempt artifacts and cancellation scopes distinct.
+
+Do not let one attempt mutate the capsule, oracle, or semantic pack underneath
+another. Shared caches must be keyed by the dependencies that affect behavior.
+For stateful external systems, the task contract must define isolation or permitted
+interference; concurrency is not automatically safe because candidate files differ.
+
+## Diagnostics and error model
+
+Return errors at the boundary that can act on them. A useful taxonomy includes:
+
+```text
+CONTRACT_AMBIGUITY
+SCHEMA / TYPE / OP_NOT_ALLOWED / HASH_MISMATCH
+EXPANSION_OR_LOWERING_ERROR
+UNSUPPORTED_CAPABILITY
+EXECUTION_ERROR
+RESOURCE_LIMIT
+TASK_REJECTION
+NUMERICAL_MISMATCH
+COMPATIBILITY_MISMATCH
+PERFORMANCE_MISS
+INFRASTRUCTURE_ERROR
+BUDGET_EXHAUSTED
+```
+
+Concrete implementations need not use these exact strings except where an existing
+protocol already defines them. The important property is that a program bug,
+resource limit, missing backend, and task rejection do not collapse into one
+"failed" signal.
+
+Diagnostics should include the smallest actionable observation: component/boundary,
+violated invariant or expected relation when known, and a counterexample or tool
+reference. The next step should target the root cause, not add undirected logging.
 
 ## Trust boundary and resource policy
 
-Trusted implementation includes parser, checker, expander, evaluator, Python,
-and the operating environment. A data-only AST narrows authority; it does not
-prove absence of implementation defects or provide process isolation. The
-reference CLI reads caller-selected local paths. Its integer/work/node limits
-are not an operating-system sandbox or a hard wall-clock guarantee.
+Generated capsules, programs, code suggestions, retrieved examples, and tutorials
+are **data** until a trusted component deliberately interprets or executes them.
+They cannot grant filesystem/network/process/model/oracle/native-code privileges.
 
-A host for hostile workloads must separately control process lifetime, filesystem,
-network, native adapters, and final-oracle access. [HOST.md](../../runtime/HOST.md)
-owns that integration boundary. Those controls are not supplied by `AGENTS.md`,
-JSON fields, or a Markdown route.
+Trusted implementation includes the parser/checker/expander, runtime/backend,
+tool broker, host, language/runtime environment, and operating-system isolation on
+which the deployment relies. A data-only AST narrows the generated attack surface;
+it does not make the interpreter, Python, compiler, or OS formally safe.
 
-Pack and runtime identities are pinned separately from canonical capsule JSON.
-A human-readable ID such as `intseq/0.1` is not by itself a content pin. Frozen
-artifacts remain reconstructible; a changed meaning requires a versioned decision.
-Legacy `arl-capsule/0.1` and `arl-program/0.1` retain their exact spellings.
+The host must control:
+
+- process lifetime/cancellation and resource ceilings;
+- filesystem, network, secret, and external-service access;
+- native/backend adapters and device access;
+- tool/model credentials and rate/budget limits;
+- final-oracle custody;
+- which generated artifacts are ever executed as native code.
+
+Pack/runtime resource limits such as intseq depth/work/integer bounds are prototype
+execution policies, not an OS sandbox. A resource rejection remains distinct from
+task correctness unless the task contract itself makes the limit part of success.
+
+## Performance architecture
+
+Do not add an optimization subsystem before measurements demand it. When performance
+is part of a task, preserve the boundary:
+
+```text
+semantic algorithm / required observation
+        -> legal implementation family
+        -> schedule/layout/backend parameters
+        -> measured target artifact
+```
+
+Profilers and benchmarks should identify the real bottleneck before the planner
+changes algorithm, memory layout, batching, vectorization, concurrency, or backend.
+Expose schedule choices in a representation only when doing so gives the model
+useful control without weakening semantic scope.
+
+## Extension strategy
+
+Add domains as packs plus one or more backends, not by growing a universal core
+operation set. A new pack must define its observation model and relevant data,
+effects, errors, ownership/concurrency, numerics, and resource semantics.
+
+Add representation features orthogonally where possible: a new tutorial or
+serialization should not require a semantic change; a new macro system should not
+implicitly grant host effects; a new backend should implement a versioned semantic
+contract. See [EVOLUTION](../../core/EVOLUTION.md).
+
+## Current implementation map
+
+| Repository artifact | Current role |
+|---|---|
+| [runtime/REFERENCE.md](../../runtime/REFERENCE.md) | Embedded Python implementation of intseq checking/expansion/evaluation and public self-tests |
+| [packs/intseq/PACK.md](../../packs/intseq/PACK.md) | Stable seven-operation intseq semantics and resource policy |
+| [packs/intseq/CAPSULE.md](../../packs/intseq/CAPSULE.md) | Exact v0.1 capsule/program format |
+| [examples/intseq/](../../examples/intseq/TASK.md) | Frozen worked contract/capsule/program, failure case, packet, imported evidence |
+| [SPEC-001](../specs/001-intseq-reference.md) | First implementation contract: extract/package the reference without semantic redesign |
+| [tools/check_docs.py](../../tools/check_docs.py) | Documentation/provenance integrity checker only; not semantic runtime validation |
+| Host/planner/tool broker/evidence store | Target architecture; not implemented yet |
 
 ## Source-of-truth map
 
 | Question | Authoritative home |
 |---|---|
-| What and why; maturity baseline | [PROJECT](../PROJECT.md) |
-| Universal agent constraints | [AGENTS](../../AGENTS.md) |
-| What to read next | [START](../../START.md) and [ROUTES](../../ROUTES.md) |
-| Current design shape | This document; [ADRs](decisions/README.md) preserve rationale |
-| Task semantics, freeze, oracle separation | [CONTRACT](../../core/CONTRACT.md) |
-| Representation preservation and observations | [SEMANTICS](../../core/SEMANTICS.md) |
-| General capsules and identity | [CAPSULE](../../core/CAPSULE.md) |
-| intseq operations, syntax, resource behavior | [PACK](../../packs/intseq/PACK.md) and [formats](../../packs/intseq/CAPSULE.md) |
-| Canonical JSON byte recipe for v0.1 | `canonical`/`digest` in [REFERENCE](../../runtime/REFERENCE.md), adopted by the formats document |
-| Synthesis states, diagnostics, revision policy | [PROTOCOL](../../core/PROTOCOL.md) |
-| Extension classes and retirement | [EVOLUTION](../../core/EVOLUTION.md) |
-| What evidence establishes | [EVIDENCE](../../core/EVIDENCE.md); [verification guide](../development/VERIFICATION.md) applies it to development |
-| Cost model and experiments | [ECONOMICS](../../core/ECONOMICS.md); [benchmark protocol](../benchmarking/PROTOCOL.md) defines comparisons |
-| Implementation scope, acceptance, lifecycle | The selected file in `docs/specs/`; [workflow](../development/WORKFLOW.md) defines transitions |
-| Migration history | [SOURCE-MAP](../provenance/SOURCE-MAP.md), not a second semantics |
+| Project mission and maturity baseline | [PROJECT](../PROJECT.md) |
+| Universal repository agent constraints | [AGENTS](../../AGENTS.md) |
+| Entry/routing guidance | [START](../../START.md), [ROUTES](../../ROUTES.md) |
+| Architecture/component ownership | This document; [ADRs](decisions/README.md) retain historical rationale |
+| Task semantics, problem compression, ambiguity | [CONTRACT](../../core/CONTRACT.md) |
+| Semantic relations and representation preservation | [SEMANTICS](../../core/SEMANTICS.md) |
+| General capsule concept and identity | [CAPSULE](../../core/CAPSULE.md) |
+| intseq semantics and artifact syntax | [PACK](../../packs/intseq/PACK.md), [formats](../../packs/intseq/CAPSULE.md) |
+| Synthesis/diagnostic loop and terminal outcomes | [PROTOCOL](../../core/PROTOCOL.md) |
+| Extension/versioning/retirement | [EVOLUTION](../../core/EVOLUTION.md) |
+| Evidence claim language | [EVIDENCE](../../core/EVIDENCE.md) |
+| Representation cost and route selection | [ECONOMICS](../../core/ECONOMICS.md) |
+| Host/tool/capability boundary | [HOST](../../runtime/HOST.md) |
+| Implementation scope/acceptance | Selected file in `docs/specs/` |
+| Experimental comparison methodology | [benchmark protocol](../benchmarking/PROTOCOL.md) |
+| Migration/history/input provenance | [SOURCE-MAP](../provenance/SOURCE-MAP.md) and preserved archive |
 
-README is a summary. Tutorials and packets are derived views. Templates are
-construction aids, not new rules. Research notes, GPU proposals, historical run
-reports, and BMAD material cannot override this authority map. Cross-document
-contradictions require an explicit repair at the owning source, not last-read wins.
+README is a summary. Tutorials, examples, packets, templates, research notes, and
+historical evidence do not override the owning contracts above. A contradiction is
+a defect to resolve at the owning boundary, not a "last document wins" rule.
 
-## Decisions and deliberate openings
+## Compatibility decisions retained
 
-Three adopted decisions preserve the archive's architecture:
-[stable semantic packs](decisions/0001-stable-semantics.md),
-[data without authority](decisions/0002-data-not-authority.md), and
-[separate acceptance obligations](decisions/0003-independent-task-acceptance.md).
-They are design decisions, not proof that an implementation enforces them.
+The architecture preserves the three adopted decisions: stable semantics under an
+adaptive surface, generated artifacts without self-authorizing execution authority,
+and independent task acceptance. Existing `intseq/0.1`, `arl-capsule/0.1`, and
+`arl-program/0.1` meanings and canonical example identities remain compatible.
 
-Open host choices include model/provider adapters, durable run storage, isolation,
-concurrency, final-oracle custody, and budget instrumentation. Open research
-choices include task families, reuse horizons, syntax/tutorial variants, finite
-holes, and richer backends. None blocks the bounded intseq extraction. A future
-spec or RFC should resolve one consequential opening only when work depends on it.
+Future versions may be more expressive, but they must not silently reinterpret
+old artifacts.

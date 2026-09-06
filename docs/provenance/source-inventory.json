@@ -2,8 +2,23 @@
   "format": "parallax-source-map/1",
   "archive": {
     "path": "docs/provenance/adaptive-representations-source.zip",
-    "sha256": "2ef132444533406479eb1ad54afe5bd5be364803aed166b4f3b15f41d5d0f0ca",
-    "source_prefix": "adaptive-representations/"
+    "sha256": "f1f443cc5e574b0b87bb4c45fe1e9d0a54613ed877cf635297e887e9db011398",
+    "source_prefix": "adaptive-representations/",
+    "historical_declared_sha256": "2ef132444533406479eb1ad54afe5bd5be364803aed166b4f3b15f41d5d0f0ca",
+    "published_corrupt_sha256": "395880b60332513c0b50f6f00c9ed172b5f5669d5d35910fdddb52630bdddc77",
+    "status": "partial-recovery",
+    "recovered_source_count": 27,
+    "unrecoverable_sources": [
+      "START.md",
+      "examples/intseq/EVIDENCE.md",
+      "research/EVALUATION.md",
+      "research/RELATED-WORK.md",
+      "research/ROADMAP.md",
+      "research/THESIS.md",
+      "runtime/HOST.md",
+      "runtime/REFERENCE.md",
+      "templates/RUN.md"
+    ]
   },
   "markdown_count": 36,
   "bmad_commit_studied": "beb368e5fc9b95bcec5e1de5bc7870dc15bece72",

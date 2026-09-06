@@ -1,72 +1,131 @@
-# Project intent
+# Project intent: high-agency engineering through better representations
 
-**Consumer:** people setting scope and agents writing implementation specifications.
-**Authority:** what Parallax is trying to provide and the bootstrap maturity baseline.
-Detailed semantics belong to `core/` and the selected pack; implementation work
-belongs to a spec. This is not a list of software already delivered.
+Parallax investigates and builds **task-adaptive representations over stable,
+checkable semantics**. Its purpose is not to generate miniature languages for
+their own sake. Its purpose is to make strong coding models better at difficult
+engineering: stronger first-pass reasoning, better architecture and algorithms,
+more effective tool use, faster diagnosis, and higher-quality implementations.
 
-## Problem and mission
+The central hypothesis is that the interface presented to a model can materially
+change the probability of a good solution. A typed API, schema, capsule, DSL,
+intermediate representation, tutorial, example set, or generated helper is useful
+when it exposes the right structure or compresses the search space. Ordinary code
+or an existing library is better when it already does that job.
 
-An LLM's programming interface can be poorly matched to a task: too much irrelevant
-surface area, too little useful structure, or abstractions whose meaning is hard
-to check. Inventing an interface can also cost more than solving the task directly,
-or hide algorithmic work inside a macro.
+## Engineering objective
 
-Parallax's mission is to make **task-adaptive representations over stable,
-checkable semantics** practical to investigate. The product should make a direct
-solution, a restricted interface, and a compositional capsule comparable without
-letting the generator redefine success. Better outcomes are a hypothesis, not a
-requirement assumed to have been met.
+Optimize roughly for:
 
-Primary users are engineering researchers running controlled experiments and
-coding agents implementing the checker/runtime/host that those experiments need.
-There is no validated market or end-user adoption claim.
+```text
+first-pass correctness × technical leverage × solution quality × recoverability
+---------------------------------------------------------------------------
+ceremony + unnecessary context + needless handoffs + process latency
+```
 
-## Present scope and state
+This is a design objective, not a benchmark formula. The concrete acceptance and
+cost metrics for an experiment remain task-specific.
 
-| Item | Bootstrap state |
+Parallax should make an agent better at:
+
+- compressing a task into invariants, degrees of freedom, unknowns, and failure
+  surface before coding;
+- selecting architecture, algorithms, data structures, libraries, and
+  representations that fit the real constraints;
+- using compilers, debuggers, profilers, analyzers, search, reference paths,
+  property checks, and benchmarks as information-producing instruments;
+- separating semantic intent from backend schedule/implementation choices;
+- diagnosing failures by competing hypotheses and discriminating experiments;
+- reasoning about memory, I/O, concurrency, numerical behavior, and target
+  performance when those actually matter;
+- making reversible local decisions autonomously while escalating contract,
+  security, compatibility, or irreversible architecture ambiguity;
+- learning reusable abstractions without silently changing the task or trusted
+  capability boundary.
+
+## Hard boundaries
+
+Capability does not require semantic looseness. Parallax keeps several invariants
+because violating them makes engineering results untrustworthy:
+
+1. The user's task and externally meaningful compatibility are not silently
+   weakened to make a candidate pass.
+2. Program/type/representation validity stays distinct from task acceptance.
+3. Generated artifacts are data and cannot self-grant machine capabilities,
+   redefine primitives, or choose their own final oracle.
+4. Semantic identities are versioned deliberately when meaning changes.
+5. Execution, test, benchmark, performance, and historical claims are never
+   fabricated or strengthened beyond their evidence.
+6. Security and host trust boundaries are concrete implementation concerns, not
+   properties created by Markdown instructions.
+
+Everything else should earn its complexity by increasing engineering capability.
+
+## Product shape
+
+The target system is a small set of composable capabilities rather than a large
+workflow framework:
+
+```text
+Task contract / repository state
+        -> problem model
+        -> representation choice (direct | library | fixed | capsule)
+        -> candidate program/code
+        -> checker/compiler/tools/runtime
+        -> execution observation
+        -> external acceptance
+        -> diagnosis, repair, reusable learning
+```
+
+A future host coordinates this loop, pins semantic/runtime dependencies, controls
+capabilities and final-oracle access, and accounts for cost. Domain packs provide
+stable meanings. Capsules are replaceable interfaces. Backends implement pack
+semantics. Evidence records answer specific engineering questions.
+
+See [ARCHITECTURE](architecture/ARCHITECTURE.md) for ownership and dependency
+direction, and [PROTOCOL](../core/PROTOCOL.md) for the high-agency solving loop.
+
+## Current repository state
+
+Parallax is still a **pre-production research prototype**. Do not infer deployed
+capability from the target design.
+
+| Present now | Not present yet |
 |---|---|
-| Routed documentation, semantic contracts, examples, templates | Present |
-| `intseq/0.1` primitives, artifact schema, embedded Python reference | Present in Markdown; not a packaged runtime |
-| Public reference test report | Imported from the archive; not independently rerun here |
-| Documentation-integrity tooling | Present; results and limitations in the [audit](provenance/BOOTSTRAP-AUDIT.md) |
-| First runtime engineering task | [SPEC-001](specs/001-intseq-reference.md); consult its frontmatter for lifecycle state |
-| Host orchestration, model calls, budget enforcement, isolated final oracle | Not implemented |
-| LLM development trials or adaptive-representation comparisons | Not yet benchmarked |
-| Native/GPU backend, hole solver, proof integration | Design-only or later research |
+| Routed documentation, contracts, templates, examples, provenance | General orchestration host or model/provider integration |
+| `intseq/0.1` semantic pack and artifact format | General multi-domain pack/runtime framework |
+| Embedded standard-library Python intseq reference | Packaged intseq runtime until SPEC-001 is implemented |
+| Public worked task/capsule/program and imported historical run report | Protected final benchmark oracle or completed LLM comparison |
+| Documentation-integrity checker and tests | Production sandbox/capability system |
+| [SPEC-001](specs/001-intseq-reference.md), ready for implementation | Native/GPU backend, solver/hole engine, proof integration |
 
-This table is a baseline, not a live capability registry. Update it only when a
-completed change has evidence. A referenced protocol is not an implemented host.
+The imported intseq test report has not become fresh execution evidence merely by
+being present in the repository. The runtime extraction task should establish a
+real executable foundation before host or benchmark claims advance.
 
-## Target capabilities
+## What success looks like
 
-| ID | Externally meaningful capability | Success condition |
-|---|---|---|
-| P1 | Bind work to a frozen task and semantic environment | An evaluator can reconstruct the contract, pack, implementation, and policy used, including revisions and failures |
-| P2 | Check and evaluate supported data artifacts | A user can distinguish malformed, inadmissible, resource-rejected, and evaluated artifacts without treating evaluation as task acceptance |
-| P3 | Keep execution and acceptance outside generated authority | Generated artifacts cannot add primitives, permissions, or an oracle merely by describing them |
-| P4 | Run bounded, auditable attempts with a direct fallback | Actual attempts, diagnostics, resource spending, and terminal outcomes are retained; budget exhaustion is visible |
-| P5 | Compare methods fairly | Direct/library/fixed-interface/adaptive arms receive declared comparable resources and independent task acceptance under a predeclared protocol |
-| P6 | Extend domains without erasing old meaning | A separately reviewed extension records semantics, implementation, tests, resource policy, and compatibility consequences |
+Near-term engineering success is a vertical slice in which a capable agent can:
 
-P1–P6 describe intended capabilities, not a mandate to implement all of them in
-one episode. SPEC-001 addresses the smallest part of P2 and establishes a public
-conformance baseline; it does not deliver P4 or P5.
+1. understand a bounded real task and repository;
+2. choose a direct or adapted interface for good technical reasons;
+3. produce an implementation/program against pinned semantics;
+4. use real tools to localize and repair failures;
+5. obtain external task acceptance with calibrated evidence;
+6. retain enough signal to improve future representation choices.
 
-## Success and non-goals
+Research success is a defensible positive, negative, or conditional result about
+when representation adaptation beats strong direct/library/fixed-interface
+baselines at comparable total cost. A negative result is useful if it reveals
+that the better interface was a familiar library, stronger contract, or simpler
+architecture.
 
-The first engineering success is a reproducible, testable runtime extraction that
-preserves the reference's observable contract. The next is an actual host that
-records costs and failures. Research success is a defensible result—positive,
-negative, or inconclusive—about adaptation under named conditions. Promotion of
-adaptation requires reproducible benefit or explicitly valued auditability at an
-accepted cost; “more type-correct outputs” alone is insufficient.
+## Non-goals
 
-Near-term non-goals are a universal IR, a new general-purpose language, native
-code generation, GPUs, autonomous invention of semantic primitives, training a
-model, production sandboxing, universal correctness proofs, and claims about
-cryptographic, driver, or distributed-system safety.
+Parallax is not trying to become a universal IR, a general-purpose programming
+language, a mandatory multi-agent workflow, a test-count maximizer, or a system
+that replaces domain semantics with one abstract graph. It does not claim universal
+correctness proofs, production isolation, GPU performance, autonomous semantic
+extension, or research novelty that has not been demonstrated.
 
-There is no requirement that every task use a capsule or that experiments favor
-adaptation. Project licensing remains an owner decision; no license is inferred
-from the archive or from studying another project.
+Project licensing remains an owner decision; public visibility does not imply a
+license.

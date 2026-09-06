@@ -1,73 +1,80 @@
-# Run record template
+# Run record: evidence needed for the next decision
 
-Do not fill evidence fields with predictions. Use `NOT_RUN` until a real tool result
-exists. This provenance record is not itself enforced by the intseq interpreter.
+A run record is a compact reconstruction of consequential facts, not a transcript.
+Record an item when it affects reproducibility, diagnosis, acceptance, cost, or a
+comparative claim. Aggregate routine tool chatter. Never replace an unexecuted
+measurement with a prediction.
 
 ```json
 {
   "run_id": "REPLACE",
-  "task_contract_sha256": "COMPUTE",
-  "capsule_sha256": "COMPUTE_OR_NOT_APPLICABLE",
-  "program_sha256": "COMPUTE_OR_NOT_APPLICABLE",
-  "pack_file_sha256": "COMPUTE_OR_NOT_APPLICABLE",
-  "runtime_source_sha256": "COMPUTE_OR_NOT_APPLICABLE",
-  "environment": "RECORD_ACTUAL",
-  "model_and_decoder": "RECORD_ACTUAL_OR_NO_MODEL_CALL",
-  "mode_and_reason": "REPLACE",
-  "stage": "INTAKE",
-  "outcome": "NOT_FINISHED",
-  "evidence": {
-    "parsing": "NOT_RUN",
-    "capsule_and_types": "NOT_RUN",
-    "expansion": "NOT_RUN",
-    "execution": "NOT_RUN",
-    "public_tests": "NOT_RUN",
-    "held_out_tests": "NOT_RUN",
-    "bounded_exhaustive_tests": "NOT_RUN",
-    "formal_proof": "NOT_RUN",
-    "native_backend": "NOT_RUN",
-    "performance": "NOT_RUN"
+  "snapshot": {
+    "task_contract": "PIN",
+    "capsule": "PIN_OR_NOT_APPLICABLE",
+    "program_or_candidate": "PIN_OR_NOT_APPLICABLE",
+    "pack_runtime_backend": "PIN_RELEVANT_IDENTITIES",
+    "environment": "RECORD_RELEVANT_ACTUALS"
   },
-  "commands_exit_statuses_and_logs": [],
-  "attempt_costs_including_failures": [],
-  "unresolved_obligations": []
+  "method": {
+    "mode": "DIRECT | CAPSULE | DESIGN_ONLY",
+    "model_decoder": "ACTUAL_OR_NO_MODEL_CALL",
+    "context_and_capabilities": "IDENTITIES_OR_COMPACT_DESCRIPTION",
+    "budget": "DECLARED_LIMITS_AND_ENFORCEMENT"
+  },
+  "attempts": [],
+  "evidence": [],
+  "terminal": {
+    "outcome": "ACCEPTED_UNDER_POLICY | REJECTED | BUDGET_EXHAUSTED | DESIGN_ONLY | NOT_FINISHED",
+    "acceptance_policy": "PIN_OR_DESCRIBE",
+    "remaining_obligations": []
+  }
 }
 ```
 
-## Extension for development or benchmark episodes
+## Attempt entries
 
-Keep the original fields above; use only the following additional fields that
-apply. The experiment operator freezes these before scored trials.
+Add an attempt only when it produced a candidate, changed the diagnosis, or consumed
+material budget. A useful shape is:
 
-```text
-run_id:
-track: development-pilot | development-comparison | representation-comparison
-spec_path_and_version:
-baseline_commit_and_dirty_state:
-completion_commit_or_preserved_patch:
-arm_and_treatment:
-model_provider_version_and_decoder:
-context_sources_and_identities:
-task_family_and_split:
-prior_exposure_and_contamination_limits:
-public_oracle_identity:
-final_oracle_identity_and_custodian:
-final_oracle_access_controls_and_limitations:
-acceptance_policy_and_reviewer:
-repetitions_seed_and_order:
-budget_caps_and_enforcement:
-actual_usage_by_stage_including_retries_review_and_failures:
-missing_usage_fields:
-cold_setup_and_warm_reuse_accounting:
-stopping_and_infrastructure_retry_policy:
-preregistered_metrics_analysis_and_exclusions:
-commands_environment_exits_and_raw_log_locations:
-acceptance_criteria_results:
-review_findings_dispositions_and_independence:
-terminal_state_and_reason:
-remaining_obligations:
+```json
+{
+  "candidate": "IDENTITY_OR_DESCRIPTION",
+  "question": "WHAT UNCERTAINTY THIS ATTEMPT/TOOL WAS MEANT TO RESOLVE",
+  "action": "MODEL/COMPILER/TEST/PROFILE/REVIEW COMMAND OR METHOD",
+  "result": "ACTUAL STATUS AND DECISIVE OBSERVATION",
+  "cost": "TOKENS/TIME/COMPUTE/MONEY WHEN MATERIAL"
+}
 ```
 
-A public development pilot is not a held-out comparison. Keep final/private
-oracle data outside candidate access; record custody rather than publishing
-secrets. Never populate expected output as though it were captured output.
+Preserve failed candidates when they explain the final choice or are part of a
+measured comparison. Do not create one record per trivial shell command.
+
+## Evidence entries
+
+Evidence is a list because different tasks require different instruments. Each
+entry should state the property, status, scope, method/source, and artifact identity:
+
+```json
+{
+  "property": "EXAMPLE: task behavior on bounded domain",
+  "status": "PASS | FAIL | NOT_RUN | NOT_APPLICABLE",
+  "scope": "EXACT CASES/DOMAIN/TARGET/ASSUMPTIONS",
+  "method": "TOOL, ORACLE, PROOF CHECKER, REVIEW, OR MEASUREMENT",
+  "artifact": "IDENTITY OR LOG/RESULT LOCATION"
+}
+```
+
+Keep representation admission, execution, task acceptance, backend validation, and
+performance as separate properties when they are relevant. A hash is identity, not
+an evidence entry saying the behavior is correct.
+
+## Additional fields for comparisons
+
+For a development or representation benchmark, add only fields needed to interpret
+the comparison: arm/treatment, task family/split, model/provider version, seed/order,
+matched budget dimensions, cold-versus-warm reuse, stopping/retry policy, oracle
+custody, preregistered metrics/exclusions, and aggregate usage including failures.
+
+Private final-oracle inputs stay in operator-controlled storage; record their durable
+identity/custodian rather than copying secrets into this file. A public development
+pilot must not be relabeled as held-out evidence.

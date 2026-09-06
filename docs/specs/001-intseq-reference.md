@@ -1,228 +1,291 @@
 ---
 id: SPEC-001
 status: ready-for-dev
-spec_version: 1
+spec_version: 2
 created: 2026-09-05
 depends_on: []
 ---
-# Package and characterize the intseq reference
+# SPEC-001 — Extract `intseq/0.1` into an importable reference runtime
 
 ## Intent
 
-Turn the existing embedded intseq reference into an importable, locally runnable,
-tested Python project **without redesigning its semantics**. A fresh checkout
-should support library calls and a documented CLI without extracting Markdown
-by hand or installing third-party packages.
+Turn the embedded `intseq/0.1` reference into ordinary local Python modules that are
+easy to import, execute, inspect, and test **without changing its semantics**.
 
-This is one reference-extraction/conformance episode, not a host-loop project.
-It is the first public Parallax LLM-development task. The repository supplies the
-reference source openly; the task measures engineering against a contract, not
-unaided invention of the algorithm. No implementation is included in this spec.
+The desired result is a transparent reference runtime, not a framework. A coding
+agent should be able to understand the entire semantic path, make a faithful first
+implementation, and localize failures quickly:
+
+```text
+Markdown artifact
+  -> strict JSON document parsing
+  -> capsule admission
+  -> program binding + type checking
+  -> hygienic macro expansion
+  -> primitive-only recheck
+  -> bounded exact evaluation
+  -> CLI result
+  -> separate task acceptance
+```
+
+This spec packages existing behavior. It does not authorize a new primitive,
+optimizer, host, task oracle, or protocol meaning.
 
 ## Required context
 
-Read these authoritative inputs; do not recursively load research or unrelated
-routes:
+Read the sources that define behavior, not every research document:
 
-- [Development workflow](../development/WORKFLOW.md) and
-  [verification strategy](../development/VERIFICATION.md).
-- [Semantic obligations](../../core/SEMANTICS.md),
-  [evidence meanings](../../core/EVIDENCE.md),
-  [intseq operations/limits](../../packs/intseq/PACK.md), and
-  [capsule/program formats](../../packs/intseq/CAPSULE.md).
-- [Embedded reference](../../runtime/REFERENCE.md) in full and
-  [host boundary](../../runtime/HOST.md). The Python fence is the compatibility
-  reference, not an independently established correctness oracle.
-- The public [task](../../examples/intseq/TASK.md),
+- [intseq semantics](../../packs/intseq/PACK.md) and
+  [capsule/program formats](../../packs/intseq/CAPSULE.md);
+- the frozen [embedded Python reference](../../runtime/REFERENCE.md) and
+  [host boundary](../../runtime/HOST.md);
+- [semantic obligations](../../core/SEMANTICS.md) and
+  [evidence meanings](../../core/EVIDENCE.md);
+- the public [task](../../examples/intseq/TASK.md),
   [capsule](../../examples/intseq/CAPSULE.md),
   [program](../../examples/intseq/PROGRAM.md), and
-  [typed-but-wrong case](../../examples/intseq/FAILURE.md).
-  [Imported evidence](../../examples/intseq/EVIDENCE.md) supplies historical
-  expected report shape/counts, not proof that a new implementation passes.
+  [typed-but-wrong counterexample](../../examples/intseq/FAILURE.md).
 
-If the prose semantics and reference contradict each other on an observed case,
-record the minimal case and block the affected work pending an explicit decision.
-Do not silently choose a new semantic interpretation. No such unresolved conflict
-is required to implement the specified slice as reviewed at bootstrap.
+The pack and format documents own meaning. The Python fence is the compatibility
+baseline for observable reference behavior. If they disagree on a concrete case,
+preserve the minimal reproducer and surface the conflict instead of silently
+choosing whichever behavior is easier to implement.
 
 ## Approach and tooling choice
 
-Use a flat local package named `parallax`, CPython 3.11 or newer, and standard-library
-`unittest`. Run from the repository root; installation is not required. Keep
-semantic mechanisms in `parallax.intseq`, command adaptation in `parallax.__main__`,
-and public demonstration/self-test logic in `parallax.selftest`.
-Private helpers may be organized intelligently; a large framework is unnecessary.
+Use CPython 3.11+ and only the standard library. Keep the implementation small
+enough that semantic behavior is visible in code review.
 
-No wheel/build backend, dependency manager, external testing package, CI workflow,
-or supported-version matrix is required in this episode. Record the exact Python
-version actually exercised. Acceptance commands use ordinary, **non-optimized**
-Python; do not run the assert-based reference self-test with `-O` or
-`PYTHONOPTIMIZE`. Compatibility with every Python version is not established by
-one environment's pass.
+The intended decomposition is:
+
+- `parallax.intseq`: constants, `Rejection`, strict parsing/canonicalization,
+  capsule admission, type inference, macro expansion, program checking, evaluation;
+- `parallax.selftest`: public fixtures, the direct-loop task oracle, and the
+  archived-style public self-test;
+- `parallax.__main__`: argument parsing, artifact I/O orchestration, result/exit
+  adaptation;
+- `tests/`: contract-derived tests plus differential checks against the pinned
+  reference.
+
+Prefer a direct extraction with explicit seams over a redesign. Refactoring is
+welcome when it makes data flow, error ownership, or testability clearer, but it
+must not alter rejection precedence, evaluation order, resource charging, or
+protocol identity.
+
+No installation step is required for acceptance. Do not add a build backend,
+dependency manager, external test framework, or CI workflow merely to package this
+slice.
 
 ## Invariants
 
-The normative intseq signatures, exact integer operations, left-to-right eager
-argument evaluation and sum accumulation, intermediate resource checks, operation
-allowlist, macro scope, and limits remain unchanged. Resource equivalence is not
-inferred from mathematical equivalence.
+### Semantic behavior
 
-Keep `intseq/0.1`, `arl-capsule/0.1`, `arl-program/0.1`, the canonical JSON recipe,
-and the example capsule/program identities unchanged. Do not rewrite frozen pack,
-schema, task, capsule, program, or programmer-packet sources to accommodate code.
-The reference Python fence remains the frozen baseline, not a second actively
-edited runtime.
+`Int` is a mathematical integer; `VecInt` is an ordered finite sequence of
+integers. Booleans and floats are not integers. There are seven primitives with
+the exact signatures and meanings in `packs/intseq/PACK.md`.
 
-Generated artifacts remain data. No generated Python execution, arbitrary imports,
-permission grants, network calls, model calls, new primitive, new macro-body
-capability, or oracle access is introduced. Imports must not execute the CLI,
-run self-tests, or access files. Evaluation must not mutate caller artifacts/input.
+Evaluation is eager and left-to-right. Sequence order and multiplicity are
+preserved. `seq.sum` accumulates left-to-right and checks every intermediate.
+Integer overflow means exceeding the configured magnitude-bit budget; values never
+wrap, saturate, or approximate.
 
-A successful ordinary CLI invocation still reports `task_correctness: NOT_CHECKED`.
-The wrong but well-typed example must remain structurally accepted and functionally
-wrong, demonstrating the distinction rather than making the type checker an oracle.
+A mathematically equivalent expression may consume different resources or reject
+at a different intermediate point. Preserve the reference behavior rather than
+algebraically “simplifying” it.
+
+### Artifact and expansion behavior
+
+Keep these externally meaningful identifiers unchanged:
+
+- pack: `intseq/0.1`;
+- capsule protocol: `arl-capsule/0.1`;
+- program protocol: `arl-program/0.1`;
+- example capsule canonical SHA-256:
+  `2a340d75023574cd3b55590dfe5583700984ded258b1257f316dd7b6490e2ee9`.
+
+Canonical JSON uses sorted object keys, compact separators, ASCII escaping,
+`allow_nan=False`, UTF-8, then SHA-256.
+
+Macro bodies may reference only their parameters, integer literals, and selected
+primitives. Program expressions may call admitted macros. Expansion is lexical and
+hygienic: substituting a caller expression for a macro parameter must not reinterpret
+names inside that caller expression in the callee's parameter environment. Expanded
+primitive IR is typechecked again.
+
+### Authority and side effects
+
+Capsules and programs are data. They cannot add permissions, code execution,
+imports, primitives, backends, or oracle access. Imports of `parallax` must not run
+the CLI, self-tests, or file reads.
+
+`evaluate` must not mutate the capsule, program, or caller input. Task acceptance
+remains outside the evaluator: successful evaluation reports behavior, not whether
+that behavior solves an arbitrary task.
+
+### Resource limits
+
+Preserve the reference limits and the points at which they are charged:
+
+| Limit | Value | Meaning |
+|---|---:|---|
+| document / JSON UTF-8 bytes | 65,536 | enforced before parsing/reading beyond the supported artifact size |
+| expression depth | 32 | checked during inference and expansion |
+| expression / expansion nodes | 4,096 | visit budget, not merely final IR size |
+| input vector length | 4,096 | evaluator input bound |
+| integer magnitude bits | 256 | applies to literals, input values, and intermediates |
+| evaluation work | 250,000 | expression visits plus sequence-element work |
+| macros per capsule | 16 | schema/admission bound |
+| parameters per macro | 1..8 | schema/admission bound |
+
+Do not make these capsule-configurable in this slice.
 
 ## Non-goals
 
-No LLM host/orchestration, context-packet service, experiment scheduler, task-contract
-parser, hidden-test harness, native/GPU backend, optimizer, hole solver, configurable
-semantic limits, generalized JSON language, formal proof, sandbox, performance
-optimization, or package publication. Do not add semantic features or “improve”
-the reference's intentionally limited grammar. Documentation updates must stay
-within what this implementation actually establishes.
+No model/agent orchestration, packet service, task-contract parser, hidden-test
+harness, optimizer, native/GPU backend, hole solver, generalized IR, sandbox,
+formal proof, performance project, package publication, or new semantic feature.
+
+Do not “improve” the grammar with vector literals, implicit casts, alternate JSON
+forms, recursive macros, arbitrary Python lowering, or friendlier behavior that
+changes a stable rejection code.
 
 ## Interfaces and observable behavior
 
-### Library
+### Library API
 
-Expose these names from `parallax.intseq`, retaining their reference contracts:
+Expose these names from `parallax.intseq`:
 
-| Interface | Observable contract |
+| Interface | Required behavior |
 |---|---|
-| `Rejection` | A `ValueError` subtype with stable `.code`; its message includes code and diagnostic detail |
-| `strict_json(text)` | Bounded UTF-8 JSON parsing; duplicate keys and NaN/Infinity rejected |
-| `canonical(obj)` / `digest(obj)` | Canonical JSON bytes / lowercase SHA-256 hex using the reference recipe; no trailing newline in canonical bytes |
-| `read_document(path)` | Read a bounded UTF-8 Markdown file with exactly one supported lowercase `json` fence; surrounding prose has no authority |
-| `validate_capsule(cap)` | Return `(signatures, macro_definitions)` or reject; signature values remain `(argument-type tuple, result type)` and definitions are keyed by `macro.NAME` |
-| `check_program(cap, prog)` | Validate binding/types, expand, recheck, and return the primitive expression tree |
-| `evaluate(cap, prog, x)` | Return `(value, expanded_ir)` or reject under the original resource policy |
+| `Rejection` | `ValueError` subtype with stable `.code`; message contains code and useful detail |
+| `strict_json(text)` | enforce byte bound; reject duplicates, NaN/Infinity, malformed/deep JSON |
+| `canonical(obj)` | canonical UTF-8 JSON bytes, no trailing newline |
+| `digest(obj)` | lowercase SHA-256 hex of `canonical(obj)` |
+| `read_document(path)` | bounded UTF-8 Markdown; exactly one lowercase `json` fence; prose has no authority |
+| `validate_capsule(cap)` | return `(signatures, definitions)` or reject |
+| `check_program(cap, prog)` | validate capsule, binding, types, expansion, primitive-only recheck; return lowered IR |
+| `evaluate(cap, prog, x)` | return `(value, lowered_ir)` or a stable rejection |
 
-Public inputs are ordinary Python built-ins representing parsed JSON; supporting
-custom objects or arbitrary Python code is outside the contract. Diagnostic prose
-need not be byte-identical, but the specified rejection codes and result shapes
-must be. Preserve the original literal-vs-variable-vs-call grammar: arrays in
-expressions are applications, not vector literals; booleans/floats are not ints.
+Use ordinary Python built-ins as parsed JSON values. Supporting arbitrary custom
+objects is outside the contract.
+
+### Failure taxonomy
+
+The stable rejection codes are part of the debugging interface:
+
+- `SCHEMA`: shape/field/JSON/literal-form violations;
+- `VERSION`: unsupported protocol or pack;
+- `OP_NOT_ALLOWED`: operation is unknown or not admitted in this capsule;
+- `TYPE`: scope, arity, type, or input-element mismatch;
+- `HASH_MISMATCH`: program is bound to a different capsule identity;
+- `RESOURCE_LIMIT`: a configured bound is exceeded.
+
+Preserve the reference's check ordering where multiple defects coexist. For
+example, a primitive list longer than seven is rejected as `OP_NOT_ALLOWED` before
+duplicate detection is reached.
 
 ### CLI
 
-`python -m parallax` replaces only the invocation prefix `python reference.py`.
-Preserve `--capsule PATH`, `--program PATH`, `--input JSON` (default `[]`), and
-`--selftest`. Paths may be ordinary caller-authorized local paths; no new sandbox
-or restriction to the examples directory is implied.
+`python -m parallax` replaces only the invocation prefix of the embedded reference.
+Support `--capsule PATH`, `--program PATH`, `--input JSON` (default `[]`), and
+`--selftest`.
 
-On ordinary success: exit `0`, one JSON object on stdout, no diagnostic on stderr,
-with exactly `status`, `value`, `expanded_ir`, `capsule_sha256`, `program_sha256`,
-and `task_correctness`. Their semantics are the reference's: `EVALUATED` and
-`NOT_CHECKED`, not task acceptance. JSON whitespace/key ordering in stdout is not
-a compatibility requirement.
+Ordinary evaluation success:
 
-On handled artifact, I/O, or UTF-8 rejection: exit `2`, stdout empty, one JSON
-object on stderr with exactly `status: REJECTED` and a useful `detail`. Rejection
-details include the stable code when a `Rejection` caused them. Missing required
-capsule/program flags follow this path (`SCHEMA`). Argument-parser usage errors
-(e.g. an unknown flag) retain argparse's text stderr/exit `2`; they are not
-required to become JSON. `--help` exits `0` without reading artifacts.
+- exit `0`;
+- one JSON object on stdout;
+- empty stderr;
+- exactly the keys `status`, `value`, `expanded_ir`, `capsule_sha256`,
+  `program_sha256`, `task_correctness`;
+- `status` is `EVALUATED`;
+- `task_correctness` is `NOT_CHECKED`.
 
-`--selftest` needs no paths and takes precedence over artifact evaluation, as in
-the reference. Successful normal-mode output retains the reference JSON shape:
-`status: PASS`, counts, Python version, capsule/program hashes, and the
-`typed_but_wrong_counterexample`. Failed checks must not be suppressed or reported
-as a pass. The self-test is public demonstration evidence, not an acceptance
-oracle for arbitrary user tasks.
+Handled artifact/I/O/UTF-8 failure:
 
-### Cases that must stay distinguishable
+- exit `2`;
+- empty stdout;
+- one JSON object on stderr with exactly `status: REJECTED` and `detail`;
+- a `Rejection` detail includes its stable code.
 
-| Case | Required observation |
-|---|---|
-| Example program with `[-2,-1,0,2]` | Value `16`; primitive IR is `['seq.sum',['seq.add',['seq.mul',['seq.filter_ge','x',0],3],5]]` |
-| Example with `[]`, `[-3,-1]`, `[0,0,2]` | Values `0`, `0`, `21` respectively |
-| Wrong-order expression from FAILURE on `[-1,0]` | Admitted; value `7`; separately specified task answer `5` |
-| Wrong capsule digest | `HASH_MISMATCH` |
-| `seq.sum` applied to `3`, wrong arity, or unbound `y` | `TYPE` |
-| Known but non-allowlisted `seq.count`, or an unknown primitive | `OP_NOT_ALLOWED` |
-| Boolean expression leaf | `SCHEMA`; no implicit bool-to-int coercion |
-| Boolean/float element in input | `TYPE` |
-| Non-list input or more than 4,096 elements | `RESOURCE_LIMIT`, as in the reference |
-| Parsed integer with more than 256 magnitude bits; overflowing intermediate | `RESOURCE_LIMIT`, not wrapping or approximation |
-| Extra capsule/program/macro fields, duplicate JSON keys, non-JSON constants | `SCHEMA` |
-| Macro body calls itself or another macro | `OP_NOT_ALLOWED`; nested macro calls in a program remain permitted |
-| Duplicate primitive within the allowed list length | `SCHEMA`; a list exceeding seven entries is rejected earlier as `OP_NOT_ALLOWED` |
-| Nested `shift` macro with parameters `x:VecInt,v:Int`, applied with offsets 2 then 3 to `[1,2]`, then summed | Value `13`; lexical substitution does not capture the caller's `x` |
+Keep normal `argparse` behavior for parser-level usage errors and `--help`.
+`--selftest` takes precedence over artifact evaluation and needs no paths.
 
-Maintain MAX_BYTES=65,536, MAX_DEPTH=32, MAX_NODES=4,096, MAX_VECTOR=4,096,
-MAX_BITS=256, MAX_WORK=250,000, at most 16 macros, and 1–8 parameters. Preserve
-where the reference charges visits/intermediates; an expansion budget is not
-merely a final-IR-size check. Tests should isolate these budgets rather than
-mistaking an earlier type/depth rejection for the intended boundary check.
+### High-information conformance cases
+
+These cases target distinct mechanisms; they are not a request for maximal test
+count.
+
+| Question | Discriminating case | Required observation |
+|---|---|---|
+| Did the happy path preserve semantics? | example program on `[-2,-1,0,2]` | value `16`; exact primitive IR `['seq.sum',['seq.add',['seq.mul',['seq.filter_ge','x',0],3],5]]` |
+| Is empty/rejected selection correct? | `[]`, `[-3,-1]`, `[0,0,2]` | `0`, `0`, `21` |
+| Are types separate from task intent? | wrong-order expression on `[-1,0]` | admitted and evaluates to `7`; task oracle says `5` |
+| Is capsule binding real? | wrong digest | `HASH_MISMATCH` |
+| Are scope/arity/types enforced? | `seq.sum(3)`, extra arg, unbound `y` | `TYPE` |
+| Is the allowlist authoritative? | `seq.count` in example capsule; unknown op | `OP_NOT_ALLOWED` |
+| Are Python bools kept out of `Int`? | boolean expression leaf / boolean input element | `SCHEMA` / `TYPE` |
+| Are inputs bounded? | non-list or vector length 4,097 | `RESOURCE_LIMIT` |
+| Are intermediates checked, not just final values? | multiply a 256-bit-magnitude value by `2` inside a larger expression | `RESOURCE_LIMIT` at the overflowing intermediate |
+| Is parsing strict? | duplicate key, NaN, extra object field | `SCHEMA` |
+| Are macro bodies primitive-only? | body calls itself or another macro | `OP_NOT_ALLOWED` |
+| Is expansion hygienic? | nested `shift(x,v)` with offsets 2 then 3 on `[1,2]`, then sum | `13` |
+| Are expansion limits about visits? | nested expansion that crosses depth/node budget | `RESOURCE_LIMIT` |
+
+For byte/depth/node/work boundaries, construct cases that actually reach the
+intended check rather than failing earlier for an unrelated reason.
 
 ## File map
 
-| Path | State / work |
+| Path | Job |
 |---|---|
-| `runtime/REFERENCE.md` | Existing frozen Python baseline; source fence unchanged |
-| `packs/intseq/{PACK,CAPSULE,TUTORIAL}.md` | Existing meaning/schema/example context; no semantic edits |
-| `examples/intseq/{TASK,CAPSULE,PROGRAM,FAILURE,EVIDENCE,PACKET}.md` | Existing public fixtures/history; preserve historical evidence and identities |
-| `parallax/__init__.py` | New local package, import without side effects |
-| `parallax/intseq.py` | New semantic library and public interfaces above |
-| `parallax/__main__.py` | New CLI adapter |
-| `parallax/selftest.py` | New public sample builders, direct-loop oracle, self-test; evaluator must not import its oracle |
-| `tests/test_intseq.py` | New primitive, admission, scope, expansion, limits, and independently expected task checks |
-| `tests/test_cli.py` | New subprocess CLI, rejection, import, and frozen-reference parity checks |
-| `.gitignore` | Existing documentation-tool cache/environment exclusions; extend only if needed and do not ignore evidence by default |
-| `README.md`, `docs/PROJECT.md`, `runtime/HOST.md` | Update only demonstrated capability/usage facts; retain historical-vs-current distinction |
-| `runs/<run-id>/` | New actual development evidence/logs; use the run template, not fabricated fixtures presented as results |
+| `runtime/REFERENCE.md` | frozen embedded Python compatibility baseline; do not edit its source fence |
+| `packs/intseq/{PACK,CAPSULE,TUTORIAL}.md` | existing semantic/schema/tutorial authority |
+| `examples/intseq/{TASK,CAPSULE,PROGRAM,FAILURE,EVIDENCE,PACKET}.md` | public fixtures and historical evidence |
+| `parallax/__init__.py` | side-effect-free package entry |
+| `parallax/intseq.py` | semantic library |
+| `parallax/__main__.py` | CLI adapter |
+| `parallax/selftest.py` | public demonstration and direct-loop oracle |
+| `tests/test_intseq.py` | semantic, admission, expansion, resource, and task-negative checks |
+| `tests/test_cli.py` | subprocess contract and reference-parity checks |
 
-No files under `parallax/` or `tests/` exist at the bootstrap baseline. Test fixtures
-may be constructed in tests or stored under `tests/fixtures/`; the public Markdown
-artifacts must also be exercised directly to catch integration drift.
+The `parallax/` and `tests/` paths are planned implementation files, not evidence
+that the package already exists.
 
 ## Implementation tasks
 
-- Characterize the frozen reference in a temporary directory using its documented
-  extraction recipe; retain the source hash, environment, command results, and
-  any discrepancy. Never execute an arbitrary fence or modify the baseline.
-- Extract and separate library, CLI, and demonstration concerns. Preserve observable
-  behavior; do not import/read the Markdown reference at production runtime.
-- Add contract-derived tests, resource/admission/scope cases, reference parity, and
-  subprocess coverage. Separate the demonstration's legacy counters from new tests.
-- Run the acceptance plan, record new evidence, update demonstrated usage/maturity,
-  and submit the spec/diff/evidence for review. Leave unavailable checks explicit.
+1. **Pin and characterize the baseline.** Verify the embedded Python fence SHA-256
+   `4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91`.
+   Run only this reviewed source when obtaining parity observations.
+2. **Extract the semantic core.** Move behavior into `parallax.intseq` with the
+   same signatures, check ordering, lexical expansion, eager evaluation, and
+   resource charging. Keep imports inert.
+3. **Separate demonstration from evaluation.** Put fixture builders, the direct-loop
+   oracle, and public self-test in `parallax.selftest`; the evaluator must not use
+   that oracle.
+4. **Add the CLI adapter.** Make streams, exits, JSON shapes, help, and `--selftest`
+   behavior match the interface above.
+5. **Test by defect class.** Use contract-derived expectations for semantics and
+   independent task answers; use differential reference checks for compatibility.
+   Keep tests that distinguish plausible wrong implementations.
+6. **Update capability prose only after evidence exists.** Do not turn a passing
+   parser/type suite into a claim of task correctness, sandboxing, performance, or
+   benchmark success.
 
 ## Acceptance criteria
 
-| ID | Acceptance condition | Required verification |
+| ID | Acceptance condition | Evidence that answers it |
 |---|---|---|
-| AC1 | Local import and CLI work without third-party packages or import side effects | Import/subprocess tests; run CLI with `python -S`; no packaged runtime reads Markdown source |
-| AC2 | Library contracts, all seven primitives, ordering/duplicates/empty cases, and exact arithmetic match pack semantics | Contract-derived unit tests, including intermediate overflow despite a bounded final mathematical result |
-| AC3 | Schema, allowlist, hash, type, macro naming/count/parameter, scope, and resource rejection behavior is preserved | Tests for the table above and each documented bound; assert rejection **codes**, not just that any exception occurred |
-| AC4 | Macro lowering is hygienic, rechecked, and bounded; caller data is not mutated | Exact expanded example IR; nested shadowing gives `13`; reject macro-body chaining/recursion and expansion over budget |
-| AC5 | Public demonstration behavior is preserved without conflating task success | Self-test counts are 2,801 bounded inputs, 1,000 seeded random inputs, 700 primitive checks, 17 rejection checks, 1 macro-scope check; wrong-case 7 vs 5 retained |
-| AC6 | Expected task values come from a direct-loop implementation, not the candidate AST or its lowering | Enumerate lengths 0..4 over -3..3; randomized seed 20260905/1,000 vectors of length 0..64 in ±1,000,000; report these exact finite scopes |
-| AC7 | CLI success and failure streams/exits/shapes match the interface | Subprocess tests for example, defaults, self-test, help, missing flags/files, invalid UTF-8/JSON, and typed rejection |
-| AC8 | Compatibility is demonstrated against the unchanged original source, not assumed from extraction | Compare reference and package self-test JSON except environment version; compare example and representative rejected CLI cases, exits and stable codes |
-| AC9 | No semantic/identity/authority expansion or invented maturity claim is introduced | Documentation check, diff review of invariants/non-goals, fresh evidence with missing checks marked |
-
-For byte-size limits, exercise a supported document/JSON value at the limit and
-just beyond it. For tree/work/expansion limits, exercise feasible near-boundary
-and over-bound cases while satisfying earlier checks. Explicitly cover maximum
-vector length and positive/negative magnitude boundaries. A good program that
-passes public tests and a wrong program that passes typechecking must both exist
-in the suite. Do not “fix” AC6 by deriving its oracle from `evaluate`.
+| AC1 | Package imports under ordinary Python and `python -S` without third-party dependencies or import-time I/O/execution | import/subprocess tests |
+| AC2 | All seven primitive meanings, exact arithmetic, eager order, and resource charging match the pack/reference | contract-derived boundary tests plus differential parity |
+| AC3 | Strict parsing, capsule admission, allowlist, stable codes, capsule digest binding, typing, macro hygiene, and expansion bounds are preserved | targeted rejection and expansion tests |
+| AC4 | CLI exits, stdout/stderr separation, success/rejection shapes, defaults, help, and self-test precedence match the documented contract | subprocess tests |
+| AC5 | The public self-test retains the historical scopes—2,801 exhaustive task inputs, 1,000 seeded random inputs, 700 primitive checks, 17 rejection checks, one macro-scope check—and retains the `7` vs `5` typed-but-wrong counterexample | self-test output and task-negative regression |
+| AC6 | Task expectations are computed by the direct-loop oracle rather than the candidate AST/expander, while reference parity independently detects extraction drift | inspection plus tests using both paths |
+| AC7 | No protocol, semantic, authority, or maturity expansion is introduced | diff review and documentation check, with any checker-version mismatch called out explicitly |
 
 ## Verification plan
 
-The following **runtime commands are planned and have not run in the bootstrap**.
-Execute from the repository root on the implementation branch:
+Run from the repository root with non-optimized CPython 3.11+:
 
 ```sh
 python --version
@@ -231,39 +294,32 @@ python -S -m parallax --help
 python -m parallax --selftest
 python -m parallax --capsule examples/intseq/CAPSULE.md --program examples/intseq/PROGRAM.md --input '[-2,-1,0,2]'
 python -m parallax --capsule examples/intseq/CAPSULE.md --program examples/intseq/PROGRAM.md --input '[true]'
+python tools/check_docs.py
 ```
 
-Expected: discovery reports a nonzero suite with all required tests passing;
-help exits 0; self-test has AC5's scoped counts; ordinary evaluation has value 16,
-`EVALUATED`/`NOT_CHECKED`; boolean input exits 2 with `REJECTED`/`TYPE` on stderr.
-The last command is an intentional negative test, not a failing acceptance run.
+The boolean-input command is an intentional negative case and should exit `2` with
+`TYPE` in the rejection detail. The example command should evaluate to `16` with
+`task_correctness: NOT_CHECKED`.
 
-Also run the existing `python tools/check_docs.py`. Capture reference subprocess
-parity inside tests or the evidence run, with the frozen fence SHA-256
-`4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91`
-checked before executing the temporary baseline. Do not count baseline extraction
-or matching hashes as task-correctness evidence.
+The implementation test suite should also execute the unchanged embedded reference
+in a temporary location after verifying its source hash, then compare representative
+success and rejection behavior. Reference agreement is compatibility evidence;
+contract-derived expectations remain necessary because two implementations can
+share a defect.
 
-Record command results, exact source commits, artifact identities, environment,
-stdout/stderr, unittest count, known failures, and NOT_RUN fields. Unit and
-reference passes are insufficient for an LLM performance, hidden-test, security,
-or formal-proof claim. Independent review is required before marking this spec
-`done`; its absence does not prevent beginning implementation or ending a coding
-pilot with a reviewable candidate in `in-review`.
+This golden documentation branch intentionally rewrites a formerly whole-file-frozen
+example wrapper while preserving its canonical JSON. Until the legacy documentation
+checker is versioned for that policy, a failure whose sole cause is that obsolete
+whole-file hash is an expected checker incompatibility, not a reason to revert the
+rewrite. Any canonical JSON, reference-fence, link, schema, or packet-binding failure
+remains a real defect.
 
 ## Readiness and history
 
-**Readiness assessment:** bootstrap-author document review only. Intent, compatibility
-baseline, dependency direction, supported environment, new/existing file map,
-observable cases, acceptance checks, and exclusions are specified. No external
-service or unresolved architecture choice is needed for this slice. Tooling and
-runtime checks are not yet executed. This is a planning gate, not an implementation
-or independent-review result.
+`ready-for-dev` means the implementation contract is sufficiently concrete to
+start; it is not implementation evidence.
 
 | Date | Actor | Entry |
 |---|---|---|
-| 2026-09-05 | Bootstrap agent under project-owner instruction | Created version 1; marked ready-for-dev after the document-level readiness review; no runtime implementation or execution |
-
-Once development begins, append baseline commit, revision decisions, acceptance
-evidence, and review dispositions. Do not erase failed attempts or silently
-rewrite the trial's frozen acceptance criteria.
+| 2026-09-05 | bootstrap | version 1 established the extraction/conformance task; runtime checks had not run |
+| 2026-09-05 | golden capability rewrite | version 2 compresses process language and strengthens module boundaries, failure semantics, diagnostic tests, and first-pass implementation guidance; no runtime implementation or new execution evidence |

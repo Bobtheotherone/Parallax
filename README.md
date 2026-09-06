@@ -1,52 +1,134 @@
 # Parallax
 
-**Task-adaptive representations over stable, checkable semantics.**
+**Engineer the representation, keep the meaning fixed.**
 
-Parallax investigates whether an LLM can solve engineering tasks more reliably or
-at lower total cost by adapting the programming interface to the task—without
-changing the task, trusted semantics, checker, backend, or acceptance oracle.
-The research term is **adaptive representation synthesis**. A direct solution
-remains preferable when adaptation does not justify its cost.
+Parallax is a research engineering system for giving a coding model the interface
+that best exposes a problem's structure without letting that interface redefine the
+problem. Sometimes the best interface is ordinary code or a mature library.
+Sometimes it is a smaller typed API, schema, DSL, macro set, or schedule space.
+Parallax exists to make that choice explicit, checkable, and measurable.
 
-## Current state
+The objective is not “generate a language.” It is to increase the probability of a
+high-quality accepted solution per unit of total engineering cost.
 
-**Pre-production research-prototype bootstrap.** This repository contains semantic
-contracts, context routes, an embedded Python `intseq` reference, worked artifacts,
-a proposed benchmark protocol, and one implementation-ready development task.
-The archive includes a source-author public test report; it has **not been
-independently reproduced during this bootstrap**.
+## The mechanism
 
-There is no packaged Parallax runtime, LLM orchestration host, native/GPU backend,
-or completed LLM benchmark. Documentation readiness is not system validation.
-The [project intent](docs/PROJECT.md) owns scope and the maturity baseline.
+```text
+frozen task + acceptance
+          |
+          v
+choose representation  ----> DIRECT / existing library
+          |
+          +------------> CAPSULE over a pinned semantic pack
+                              |
+                              v
+                    program / implementation
+                              |
+                  check + expand/lower
+                              |
+                              v
+                    interpreter / backend
+                              |
+                              v
+                         behavior
+                              |
+                              v
+                 external task acceptance
+```
 
-## Start here
+A capsule can select operations, constrain invalid choices, expose types, compose
+checked macros, or present examples that reveal the right decomposition. It is
+useful when those choices compress the model's search space or make important
+invariants mechanically visible. It is unnecessary when native code already gives
+the model the stronger interface.
 
-**Coding agent:** read [START.md](START.md), then implement
-[SPEC-001: package and characterize the intseq reference](docs/specs/001-intseq-reference.md).
-Its status is `ready-for-dev`; its implementation checks have not run.
+The key separation is:
 
-**Human:** read [project intent](docs/PROJECT.md) and the
-[architecture](docs/architecture/ARCHITECTURE.md). The
-[roadmap](docs/ROADMAP.md) sequences exit gates, not shipped features.
+`representation validity != execution != task correctness`
 
-**Researcher:** use the [benchmark protocol](docs/benchmarking/PROTOCOL.md)
-before the [thesis](research/THESIS.md) and [related work](research/RELATED-WORK.md).
-The worked example is public development material, not a hidden benchmark.
+A well-typed program can still implement the wrong algorithm. A generated artifact
+can describe a capability without possessing it. A fast result is irrelevant if it
+fails the task.
 
-[ROUTES.md](ROUTES.md) maps every activity to its minimum context.
-The preserved source, migration dispositions, and pinned BMAD methodological
-reference are in [provenance](docs/provenance/SOURCE-MAP.md).
-BMAD is not installed and is not a dependency.
+## Engineering principles
 
-## Checks and boundaries
+Parallax is built around a few hard boundaries:
 
-`python tools/check_docs.py` checks documentation links, provenance, frozen
-identities, and spec state structure. It does **not** execute Parallax semantics.
-Reference reproduction is a separate, explicit route in
-[runtime/REFERENCE.md](runtime/REFERENCE.md).
+- **Task meaning is external.** Representation search cannot quietly change the
+  requested output, tolerated errors, input domain, side effects, or acceptance
+  policy.
+- **Semantics are stable and versioned.** Capsules adapt a surface over pinned
+  domain meanings rather than inventing trusted primitives on every attempt.
+- **Generated artifacts are data.** The host grants machine capabilities; a
+  capsule/program cannot grant itself network, filesystem, process, model, native,
+  or oracle access.
+- **Acceptance is separate.** Typechecking, lowering, execution, public tests, and
+  final task acceptance answer different questions.
+- **Total cost matters.** Representation construction, examples, retries, tools,
+  verification, and failed attempts count. A short final program is not evidence
+  that the system solved the task cheaply.
+- **Tools should reduce uncertainty.** Compilers, interpreters, debuggers,
+  profilers, references, differential/property checks, and targeted tests are most
+  valuable when they discriminate between plausible explanations.
 
-`AGENTS.md` is operating guidance, not a sandbox. Runtime permissions and held-out
-oracle secrecy require an external host. Legacy `arl-capsule/0.1` and
-`arl-program/0.1` wire identifiers are deliberately preserved.
-No project license has been selected in this bootstrap.
+See [core semantics](core/SEMANTICS.md), [capsules](core/CAPSULE.md),
+[task contracts](core/CONTRACT.md), and [economics](core/ECONOMICS.md).
+
+## Current repository
+
+This is a **pre-production research prototype**, not a deployed coding platform.
+
+Present today:
+
+- the task/semantic/capsule/evidence model and architecture;
+- the stable `intseq/0.1` example pack and legacy `arl-capsule/0.1` /
+  `arl-program/0.1` artifact formats;
+- an embedded standard-library Python reference implementation in
+  [runtime/REFERENCE.md](runtime/REFERENCE.md);
+- worked positive and well-typed-but-wrong examples;
+- documentation integrity tooling;
+- [SPEC-001](docs/specs/001-intseq-reference.md), a prepared engineering contract
+  for extracting the embedded reference into an ordinary Python package.
+
+Not present today: a packaged Parallax runtime, model-orchestration host, isolated
+final oracle, native/GPU backend, production sandbox, or completed LLM
+representation benchmark. The imported intseq run report is historical source
+evidence, not a fresh validation of this repository state.
+
+The project maturity baseline is owned by [docs/PROJECT.md](docs/PROJECT.md).
+
+## A small example with a large lesson
+
+The worked task sums `3*v + 5` only for values that were nonnegative **before** the
+transformation. Under the intseq capsule, both of these ideas can be well-typed:
+
+```text
+filter original values -> transform -> sum     # task-correct
+transform -> filter transformed values -> sum  # wrong on [-1, 0]
+```
+
+The second returns `7`; the task requires `5`. The type system should not be
+“improved” to pretend it knows arbitrary task intent. The right diagnosis is an
+algorithm/order error, found by a separate task oracle. This is the separation
+Parallax is designed to preserve at larger scale.
+
+## Navigate
+
+- **Start engineering work:** [START.md](START.md)
+- **Select context by question:** [ROUTES.md](ROUTES.md)
+- **Understand project scope:** [docs/PROJECT.md](docs/PROJECT.md)
+- **Understand system boundaries:** [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
+- **Design a task-adapted interface:** [core/CAPSULE.md](core/CAPSULE.md)
+- **Understand the synthesis loop:** [core/PROTOCOL.md](core/PROTOCOL.md)
+- **Work with intseq:** [packs/intseq/PACK.md](packs/intseq/PACK.md) and
+  [packs/intseq/CAPSULE.md](packs/intseq/CAPSULE.md)
+- **Evaluate the research claim:** [docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md)
+  and [research/THESIS.md](research/THESIS.md)
+- **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Security/trust model:** [SECURITY.md](SECURITY.md)
+
+`python tools/check_docs.py` checks documentation structure, local links,
+provenance coverage, selected frozen identities, and spec metadata. It does not
+execute the intseq runtime or establish semantic/task correctness.
+
+No project license has been selected.

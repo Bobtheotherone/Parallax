@@ -1,88 +1,131 @@
 # Contributing to Parallax
 
-Parallax is a pre-production research prototype. Contributions should preserve its
-central discipline: adapt representations without quietly changing the task,
-trusted semantics, acceptance policy, or evidence standard.
+Parallax contributions should increase engineering capability without moving the
+goalposts. The central test is simple: does the change make difficult tasks easier
+to solve, diagnose, or evaluate while preserving the task, semantic, capability,
+and compatibility boundaries that matter?
 
-This file is contributor guidance, not a new source of semantic authority. When it
-conflicts with an owning document, treat that conflict as a defect and follow the
-[source-of-truth map](docs/architecture/ARCHITECTURE.md#source-of-truth-map).
+This guide is operational advice. Owning semantics remain in `core/`, domain packs,
+the architecture, and any implementation spec that explicitly governs the change.
 
-## Before changing anything
+## Start from the actual problem
 
-1. Read [START.md](START.md) and choose the smallest applicable route in
-   [ROUTES.md](ROUTES.md). Do not load or edit unrelated research by default.
-2. Inspect the actual branch and files before planning work. A roadmap entry or
-   planned path is not evidence that an implementation exists.
-3. Identify the authoritative home for the truth you intend to change. README is
-   a summary; templates and examples do not override contracts or semantics.
-4. For implementation work, use the selected file in `docs/specs/` as the bounded
-   contract and follow the [development workflow](docs/development/WORKFLOW.md).
+Inspect the current branch, touched code, and relevant contract before designing a
+solution. Do not infer implementation state from the roadmap or a planned path.
 
-Do not weaken a task, checker, test, resource boundary, or acceptance oracle to
-make an implementation pass. Preserve frozen identities and historical evidence.
+Use an existing implementation spec when one governs the requested work. Create or
+expand a spec only when the change genuinely needs a durable cross-file contract,
+compatibility decision, or acceptance definition; a local mechanical fix does not
+need a new layer of paperwork.
 
-## Choose the right kind of change
+For the prepared intseq extraction, follow
+[SPEC-001](docs/specs/001-intseq-reference.md) exactly. For other work, use
+[START.md](START.md) and [ROUTES.md](ROUTES.md) to find the owning context.
 
-**Documentation or routing.** Edit the owning document and keep derived summaries
-consistent. Run the documentation checker after changing live Markdown or links.
-Historical migration claims belong in [provenance](docs/provenance/SOURCE-MAP.md),
-not in a competing live specification.
+## Engineering standard
 
-**Implementation.** Work from an approved spec. Keep the change within its stated
-file map, invariants, non-goals, acceptance criteria, and verification plan.
-Record checks actually run and leave unavailable checks explicit.
+A strong contribution makes the first serious implementation attempt intelligent.
 
-**New primitive, backend, or semantic behavior.** This changes the trusted
-implementation boundary. Follow [EVOLUTION.md](core/EVOLUTION.md): require an
-explicitly reviewed change with semantics, reference behavior, tests, resource
-policy, provenance, compatibility consequences, and an implementation spec as
-appropriate. Generated capsules cannot authorize this class of change.
+Before coding, model the relevant contract and failure surface: inputs/outputs,
+invariants, state ownership, dependency direction, effects, errors, concurrency,
+resource lifetime, numerical policy, data layout/serialization, and performance
+constraints. Apply only what matters to the problem.
 
-**Research or experiments.** Keep implementation truth separate from hypotheses.
-Use the routed benchmark/evidence documents and report negative or inconclusive
-results without promoting them into capability claims.
+Choose algorithms, representations, libraries, and protocols because they fit those
+constraints. Prefer a mature library or ordinary code over bespoke machinery when
+it is the stronger interface. Add abstraction when it reduces duplicated reasoning,
+narrows invalid states, exposes a useful invariant, enables reuse, or makes a hard
+failure easier to localize.
 
-## Branches, commits, and pull requests
+For performance work, reason first about asymptotics and data movement, then measure
+the actual target. Use profiling to find the bottleneck before optimizing cache
+behavior, allocation, batching, concurrency, serialization, or device scheduling.
+Do not trade required correctness for a benchmark number.
 
-Use a branch and coherent commits. Do not force-push over someone else's work or
-erase failed-run history. Preserve user changes that are outside the requested
-scope.
+## Use tools to answer questions
 
-A pull request should state:
+A tool run should resolve uncertainty. Examples:
 
-- the problem and bounded scope;
-- the owning spec/contract or documentation authority, when applicable;
-- files and semantic boundaries intentionally not changed;
-- verification actually performed, including failures and `NOT_RUN` checks;
-- evidence locations or reproducible commands;
-- unresolved risks, review needs, or owner decisions.
+- compiler/type checker: is the proposed interface structurally valid?
+- focused test/counterexample: which of two plausible semantics is implemented?
+- debugger/trace: where does state diverge?
+- static analyzer: is a property violated on a reachable path?
+- reference/differential check: did compatibility drift?
+- profiler/benchmark: what is actually expensive on the target?
 
-Review the exact revision being proposed. Self-review is useful, but it is not an
-independent oracle and does not satisfy a policy that explicitly requires an
-independent reviewer.
+When debugging, prefer
+`observe -> localize -> competing hypotheses -> discriminating experiment ->
+root-cause repair -> re-evaluate`.
+Do not respond to an algorithm bug by weakening a task oracle or inventing a new
+primitive.
 
-## Verification
+## Semantic and capability changes are special
 
-For documentation and context changes, run:
+Ordinary implementation work must not silently change stable meaning. Preserve
+`intseq/0.1`, `arl-capsule/0.1`, `arl-program/0.1`, and the frozen example
+identities unless the requested work is an explicit versioned evolution.
+
+A new primitive or backend changes trusted behavior. Follow
+[core/EVOLUTION.md](core/EVOLUTION.md) and define the semantics, observation model,
+implementation/lowering, resource policy, compatibility consequences, and evidence
+needed to trust it. A generated capsule can request or describe an operation; it
+cannot admit that operation into the runtime.
+
+Generated/retrieved content remains data. Do not make arbitrary retrieved code
+fences, capsule fields, or model output executable merely because they are
+convenient. [SECURITY.md](SECURITY.md) defines the trust boundary.
+
+## Verification: maximize information, not test count
+
+Tests are valuable when they protect a semantic boundary, discriminate between
+plausible implementations, expose a realistic edge case, or make refactoring safe.
+Do not optimize for test quantity or coverage percentages in isolation.
+
+Keep evidence claims scoped:
+
+- parsing/type/admission checks do not establish task correctness;
+- successful execution does not establish acceptance;
+- finite tests do not establish a universal property;
+- a reference comparison can preserve a shared bug;
+- performance claims require actual measurements under a described setup.
+
+For implementation work, run the checks that can falsify the important failure
+modes and those required by the governing spec. For documentation changes, run:
 
 ```sh
 python tools/check_docs.py
 ```
 
-For implementation changes, also run the checks required by the selected spec and
-follow [VERIFICATION.md](docs/development/VERIFICATION.md). Do not describe a hash,
-typecheck, finite test suite, or source-reported historical result as stronger
-evidence than it is; [EVIDENCE.md](core/EVIDENCE.md) defines the project's result
-language.
+Record only commands and results that actually occurred. If an important check is
+unavailable, state that limitation instead of manufacturing a pass. See
+[core/EVIDENCE.md](core/EVIDENCE.md) and
+[docs/development/VERIFICATION.md](docs/development/VERIFICATION.md).
 
-When a required tool or oracle is unavailable, report that limitation rather than
-inventing a pass.
+## Documentation and history
 
-## Licensing and imported material
+Change a fact at its authoritative home and keep summaries concise. The
+[source-of-truth map](docs/architecture/ARCHITECTURE.md#source-of-truth-map)
+distinguishes normative, derived, executable, illustrative, and historical
+documents.
 
-No project license has been selected. Do not infer redistribution rights from the
-repository's public visibility or from material used for research. Avoid adding
-third-party code, text, datasets, or generated artifacts with unclear provenance
-or incompatible terms. Licensing remains a repository-owner decision, as recorded
-in [PROJECT.md](docs/PROJECT.md).
+Do not rewrite provenance, dates, hashes, or historical outcomes to make the current
+story cleaner. New evidence appends to history; it does not retroactively turn an
+old `NOT_RUN` into a pass.
+
+## Branches, commits, and review
+
+Work on a branch, preserve unrelated user changes, and make commits that correspond
+to coherent engineering ideas. Do not force-push over someone else's work or erase
+failed evidence merely to produce a clean narrative.
+
+When a pull request is appropriate, its useful content is compact: what problem was
+solved, which contract/boundary mattered, the non-obvious design choice, the checks
+actually run, and any material remaining risk. Review the exact revision and focus
+on behavior, architecture, compatibility, security, and performance—not ceremonial
+finding quotas.
+
+## Imported material and licensing
+
+No project license has been selected. Public visibility does not by itself grant
+redistribution rights. Do not add third-party code, datasets, or substantial text
+whose license/provenance is incompatible or unclear.
