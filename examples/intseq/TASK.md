@@ -1,11 +1,49 @@
 # Worked task: sum transformed original nonnegative integers
 
-Compute the sum of `3*v + 5` for every element `v` of the input that is originally
-nonnegative. Preserve multiplicity. Return zero when no elements qualify.
+Compute the exact sum of `3*v + 5` for every input element `v` that is
+**nonnegative in the original input**. Preserve multiplicity. If no element
+qualifies, return zero.
 
-This task is intentionally simpler than a GPU kernel so the entire supported
-semantic path can be inspected and run. Its direct implementation is short; no
-claim is made that inventing a capsule is economically preferable on this task.
+This task is deliberately small enough that the contract, representation, lowering,
+execution, and independent task check can all be inspected. Its direct solution is
+also small; the example demonstrates Parallax's semantic boundaries, not an
+assertion that capsule construction is economically preferable here.
+
+## Contract compressed to invariants
+
+For an in-domain sequence `x = [v_0, ..., v_{n-1}]`, define each element's
+contribution independently:
+
+\[
+c(v)=\begin{cases}3v+5 & v\ge 0\\0 & v<0\end{cases},
+\qquad F(x)=\sum_i c(v_i).
+\]
+
+A solver should preserve these properties:
+
+- **predicate provenance:** qualification depends on the original `v`, not on a
+  transformed value;
+- **multiplicity:** repeated qualifying values contribute repeatedly;
+- **empty identity:** `F([])=0`;
+- **exact arithmetic:** no wrapping, saturation, or approximation;
+- **decomposition:** `F(a ++ b) = F(a) + F(b)` for in-domain sequences;
+- **order is observationally irrelevant to this particular scalar result**, even
+  though the `intseq` sequence primitives themselves preserve order.
+
+The most informative small counterexample for operation ordering is `[-1,0]`:
+filter-then-transform gives `5`, while transform-then-filter gives `7`. A candidate
+that passes typechecking but fails this case has an algorithm/dataflow error, not
+a missing type rule.
+
+## Domain versus runtime policy
+
+The task domain is lists of length `0..4096` whose elements are integers in
+`[-1000000,1000000]`. The `intseq` runtime also has pack-level resource limits.
+Those are separate concerns: a host should enforce the task domain, while the
+runtime may reject resource excess. A resource rejection is not permission to
+change the mathematical result or weaken the contract.
+
+## Frozen contract record
 
 ```json
 {
@@ -35,6 +73,23 @@ claim is made that inventing a capsule is economically preferable on this task.
 }
 ```
 
-The interpreter checks pack-level bounds, not the example's narrower task domain.
-The example's tests supply in-domain inputs. A general harness must enforce its
-own task domain and oracle separately.
+## Acceptance boundary
+
+The public policy checks a bounded exhaustive region and randomized inputs against
+a direct-loop oracle. It is useful finite evidence, not a proof over the whole
+contract domain. The oracle and AST interpreter use different implementation paths
+but share project authorship, and all inputs are public.
+
+The capsule/program checker is intentionally **not** the task oracle. It should
+accept structurally valid programs even when they implement the wrong operation
+ordering. This keeps a valuable diagnostic distinction:
+
+```text
+schema / allowlist / hash / type / expansion  -> representation validity
+execution under runtime limits                -> runtime result
+comparison with this frozen contract           -> task acceptance
+```
+
+When constructing a solution, first derive the contribution rule and provenance
+constraint above, then map that plan to the available operations. Do not infer the
+contract from whichever expression happens to typecheck.

@@ -1,201 +1,429 @@
-# A thesis for adaptive representation synthesis
+# Thesis: optimize the interface to engineering problems
 
-**Status:** research argument and hypotheses, not implementation authority. No empirical claim here establishes Parallax effectiveness. Adopted boundaries are recorded in [architecture](../docs/architecture/ARCHITECTURE.md).
+**Status:** research argument and falsifiable hypotheses, not implementation
+authority. Nothing in this document establishes that Parallax improves model
+performance. Adopted system boundaries live in the project architecture and core
+semantic contracts.
 
-## 1. The instrument, not the vocabulary
+## 1. Core claim
 
-A programming language is one interface through which a solver encounters a
-problem. The interesting intervention is not inventing words. It is selecting
-which distinctions are visible, which choices remain open, which invariants are
-maintained, and which obligations become mechanically checkable.
+A coding model does not solve an abstract task directly. It solves the task through
+a **representation**: source language, APIs, schemas, types, examples, repository
+structure, compiler diagnostics, runtime tools, and whatever distinctions the
+interface makes easy or hard to express.
 
-The proposal is to synthesize a temporary **representation capsule** for a model,
-task, environment, and budget, over a stable semantic implementation. The model
-uses that capsule to construct a program. A separate checking/evaluation path
-judges the result against a task contract fixed before representation search.
+That interface is therefore part of the computational problem. For some tasks, a
+better interface can concentrate model effort on the decisions that determine a
+correct implementation while moving repetitive or mechanically checkable
+obligations into reusable machinery.
 
-The capsule is an instrument of reasoning. Like a coordinate system, it can make
-some relationships easier to see. Unlike a mathematical coordinate change,
-restricting operations can remove solutions, and a model can misunderstand a new
-encoding. Its value must therefore be measured, not inferred from elegance.
+The research claim is not “smaller languages are better” or “generate a DSL for
+every task.” It is:
 
-## 2. What must be removed from the original account
+> **Choose the representation that gives this solver the most useful structure for
+> this task and environment, while keeping task success and semantic meaning fixed.**
 
-The equation “language = function(model, task, environment, constraints)” omits the
-source of semantics, the acceptance oracle, construction cost, and authority to
-extend the runtime. Those omissions hide the hardest work.
+Often the right representation will be ordinary code plus a good library. Sometimes
+it may be a restricted API, typed schema, reusable macro set, schedule language,
+intermediate representation, or task-specific capsule. Adaptation is valuable only
+when its benefit exceeds acquisition, construction, validation, and maintenance
+cost.
 
-A compiler does not know how to implement a newly named operation because prose
-says that it does. A language restriction does not enforce itself by appearing in
-a prompt. A smaller grammar does not imply a correct algorithm. A changing
-language cannot have both arbitrary mutable meaning and reproducible artifacts.
+## 2. Representation changes where intelligence is spent
 
-Other attractive claims need qualification. General-purpose languages are not
-simply designed to maximize expressiveness: restrictions, abstractions, effects,
-and safety have long been design goals. In-context acquisition is not free or
-necessarily reliable. A model with excellent native-language priors may be harmed
-by an unfamiliar miniature syntax. These are reasons to benchmark adaptation,
-not to dismiss it or promise its success in advance.
+Every engineering solution has obligations: understand intent, choose an algorithm,
+respect interfaces, manage state/effects, implement operations, satisfy resource
+constraints, diagnose failures, and establish acceptance. A representation does not
+make these obligations disappear; it **places** them.
 
-## 3. The semantic obligation accounting principle
+| Obligation | Good placement |
+|---|---|
+| task intent and acceptance | frozen external contract/oracle |
+| stable domain meaning | semantic pack or trusted library/backend |
+| task-specific algorithmic choices | solver/program unless deliberately supplied as reusable abstraction |
+| structural legality | types/schema/checker where practical |
+| machine mapping/schedule | explicit schedule layer when performance requires it |
+| permissions and isolation | trusted host/environment |
+| diagnostics | checker/compiler/runtime with failure-localizing outputs |
+| final evidence | independent acceptance/measurement path |
 
-Hiding a choice is not the same as eliminating the obligation associated with it.
-If an operator performs a parallel reduction, someone must still specify its
-scope, numerical behavior, synchronization, and implementation. Those obligations
-move into a pack and backend. They become cheaper only if the implementation is
-reused, its properties can be checked, or it removes repeated errors.
+The design objective is to put routine, reusable, enforceable obligations in
+machinery while leaving the solver the decisions where model reasoning has the
+highest marginal value.
 
-This is an engineering accounting principle, not a proven conservation law.
-Compression can genuinely reduce work through reuse. But a short model output is
-not evidence that the total system did less work. Count language design, macro
-construction, runtime development, tests, and failed attempts.
+This is why a one-token `SOLVE_TASK()` macro is not automatically impressive. If
+its implementation encodes the complete task algorithm, the hard reasoning was
+performed during macro construction. That can still be useful abstraction, but its
+cost and ownership belong in the accounting.
 
-## 4. A corrected mathematical object
+## 3. Stable semantics make representation search meaningful
 
-Let T be a frozen task contract, M a specified model/decoder configuration, E a
-pinned environment, K the available semantic packs, and b the full budget. Let
-C denote a capsule, A its program, and R the actual checked execution result.
+Let `T` be a frozen task contract, `M` a specified model/decoder, `E` a pinned
+execution environment, `K` a set of implemented semantic packs/capabilities, and
+`b` a total budget.
+
+Let a candidate representation `R` choose some combination of operation subset,
+compositional helpers, structural constraints, serialization, tutorial/context,
+and—where supported—finite legal implementation parameters. A program `p` generated
+against `R` lowers through a fixed semantic path:
 
 \[
-C \sim G(M,T,E,K,b),\quad A\sim M(T,C),\quad
-I=\operatorname{Expand}_C(A),\quad B=\operatorname{Backend}_E(I).
+R \sim G(M,T,E,K,b),\qquad
+p \sim M(T,R),\qquad
+I=\operatorname{Expand}_R(p),\qquad
+B=\operatorname{Backend}_E(I).
 \]
 
-The task asks for `Phi_T(B)`, not merely well-formedness of A. A backend may be an
-interpreter; native compilation is an optional implemented capability, not a
-universal premise. An unsupported backend makes that route unavailable.
-
-For an idealized research objective, maximize:
+The external task asks whether
 
 \[
-\Pr[\Phi_T(B)\ \land\ \operatorname{Cost}_{all}\le b].
+\Phi_T(B)
 \]
 
-In practice Phi is not directly observable in every domain. Record the actual
-acceptance policy and its gaps. A passing test-based proxy is not silently
-identified with mathematical truth. For performance tasks, optimize target
-performance subject to acceptance and total search cost, not in exchange for
-correctness. Report false acceptance whenever stronger later evaluation finds it.
+holds under its stated observation model. It does **not** ask whether `p` merely
+parses, typechecks, or executes.
 
-The optimum also depends on the generator/checker/repair policy and the prior
-task distribution. It is not an intrinsic property of a language in isolation.
+A useful primary objective is therefore
 
-## 5. Why a smaller search space is not enough
+\[
+\max_R\Pr[\Phi_T(B)\ \land\ \operatorname{Cost}_{all}\le b],
+\]
 
-An LLM does not sample uniformly from all syntactically valid native programs.
-It has a learned distribution. Removing many unlikely bad programs may matter
-little; removing one familiar useful pattern may matter greatly.
+where `Cost_all` includes representation design, context, generation, failed
+attempts, repairs, tools, verification, compiler/solver work, and any cold-start
+construction allocated to the regime.
 
-For a fixed distribution p and an ideal restriction V preserving every correct
-program G, exact conditioning gives:
+When accepted implementations also have a performance objective, treat correctness
+as a constraint and compare quality among accepted results. Do not trade task
+correctness for a faster wrong program through a weighted score unless the task
+contract explicitly defines that tradeoff.
+
+Stable semantics are essential to interpreting this experiment. If a new surface
+can silently redefine primitives or acceptance, then a “better representation” may
+simply be an easier task.
+
+## 4. Search-space size is only a proxy
+
+A model does not sample uniformly from all syntactically valid programs. It has a
+learned distribution shaped by training, syntax familiarity, examples, naming, and
+context.
+
+If a restriction `V` preserved all correct programs `G` and generation were exact
+conditioning of a fixed distribution, then
 
 \[
 p(G\mid V)=p(G)/p(V),\qquad G\subseteq V.
 \]
 
-That observation explains why removing invalid mass can help under its explicit
-assumptions. It does not prove that prompting an unfamiliar language helps.
-Changing syntax changes the model's distribution; local token masking is also
-not generally the same as exact whole-sequence conditioning. The real question is
-where acceptable probability mass moves after the intervention.
+This idealized observation explains why removing invalid mass *can* help. But a new
+syntax changes the model's distribution, and constrained token generation is not in
+general equivalent to conditioning complete native programs on a property.
+Removing many unlikely invalid programs may do little; removing one familiar useful
+pattern may hurt badly.
 
-Entropy is therefore a diagnostic, not the objective. A model that always emits
-the same wrong answer has zero entropy. Token entropy changes with serialization
-and tokenization. Prefer acceptable-result rate within a fixed total budget.
+Therefore grammar size, token entropy, or number of syntactically valid programs is
+not the research objective. A model that emits one confidently wrong program has
+low entropy and zero task value. Measure acceptable-result probability, repair cost,
+and total resource use.
 
-## 6. A bounded grammar is not a universal metalanguage
+## 5. Properties of a high-leverage representation
 
-Begin with a familiar serialization and existing semantic atoms. Permit selection,
-restrictions, and transparent macros. Avoid a fresh parser, effect system, and
-compiler for every task. Search over interfaces to supported meanings before
-searching over new meanings themselves.
+A representation is promising when it changes engineering cognition, not merely
+spelling.
 
-A whole-task macro is not necessarily cheating. Many useful libraries expose
-complete algorithms. It is misleading only when the macro's construction is not
-counted or its authoring work is credited to a trivial final program. The research
-experiment should distinguish representation assistance from algorithm synthesis.
+### It exposes the task's invariants
 
-Likewise, requiring many syntactically valid programs does not demonstrate
-creativity. No-op padding yields arbitrarily many programs. For a fixed functional
-task, all correct implementations may share the same extensional behavior while
-differing importantly in schedule, storage, latency, or memory use. Evaluate the
-relevant implementation families, not raw syntax counts.
+Types, schemas, APIs, or examples should make critical distinctions visible:
+original versus transformed values, ownership, effects, state transitions,
+numerical precision, reduction scope, idempotency, compatibility, or resource
+bounds. Hiding these distinctions invites first-pass errors.
 
-## 7. The unit of trust is different from the unit of adaptation
+### It removes irrelevant choices
 
-A capsule can be temporary. A semantic primitive and its implementation need
-stable identities. A model may select or compose capabilities but cannot grant
-itself new capabilities by writing a rule. A task oracle must not be rewritten
-by the same feedback loop that tries to satisfy it.
+A task-specific operation subset can prevent the model from spending probability
+mass on unrelated APIs or invalid compositions. The restriction must preserve the
+solution families that matter; arbitrary minimality is not a virtue.
 
-This suggests three distinct artifacts: the **contract** defining success, the
-**capsule** exposing supported decisions, and the **evidence-bearing result**.
-They may be stored together, but must not have interchangeable authority.
+### It packages reusable semantic work
 
-The system learns by changing representations between frozen episodes. A missing
-operation produces an extension proposal. A failed test produces a counterexample.
-A timeout produces a budget-exhausted result. These are not equivalent events.
+A checked helper can compress a recurring algorithmic pattern, especially when its
+construction cost is amortized across tasks. Reuse is real leverage; relabeling new
+algorithm synthesis as “language design” is not.
 
-## 8. Stable interfaces, plural semantic domains
+### It makes decomposition explicit
 
-A universal semantic graph is an attractive organizing picture but not a complete
-semantics. Tensors, transactions, protocols, memory ownership, and user interfaces
-have different observations and correctness obligations. A common graph format
-can connect domain-specific dialects without pretending these distinctions vanish.
-[MLIR][mlir] is relevant prior infrastructure for extensible compiler dialects;
-it is not an automatic proof that any generated dialect is meaningful.
+Difficult engineering often fails at boundaries rather than inside individual
+functions. Useful interfaces reveal dependency direction, component ownership,
+data shape/layout, state machines, error propagation, concurrency scope, and
+resource lifetime. A representation that turns implicit cross-module assumptions
+into explicit contracts can improve the first serious solution even without
+shrinking syntax much.
 
-For a large project, keep component contracts stable and local capsules replaceable.
-Specify data layout, effects, ownership, errors, concurrency, and numerical
-relations at boundaries. Interface compatibility must be checked at the level
-that matters, not just by matching a function signature's text.
+### It supports informative tools
 
-## 9. Learning is a cost to measure, not assume away
+The best checker error is not merely “invalid.” It localizes a violated assumption
+well enough to choose the next discriminating experiment. A representation can be
+valuable because compilers, static analyzers, profilers, solvers, or differential
+runners become more precise instruments over it.
 
-A model may acquire a compact interface from context, but acquisition consumes
-prompt capacity and can introduce misinterpretation. Tutorial examples can leak
-solutions. Syntax experiments can overfit model versions. Repeated tuning on the
-same held-out tasks stops being a held-out evaluation.
+### It matches the solver's priors
 
-Cache supported capsules by domain and environment. Measure cold and warm starts.
-Profile a model using repeated controlled tasks, not anecdotal claims that it
-“likes prefix expressions.” Test syntax changes separately from changes in macro
-power, budget, and examples. A novel representation earns its place empirically.
+Familiar names and compositional patterns can outperform theoretically elegant but
+novel notation. Novel serialization needs a measured reason. A representation
+should spend context on semantic distinctions the model needs, not on teaching an
+arbitrary grammar.
 
-## 10. The research contribution to seek
+### It preserves escape to stronger tools
 
-There is substantial precedent: [Sketch][sketch] fills program holes;
-[DreamCoder][dreamcoder] learns abstractions and languages;
-[AutoDSL][autodsl] automates domain-language construction;
-[AMaze][amaze] optimizes DSLs for syntax-guided synthesis; and
-[type-constrained generation][typegen] enforces some structural properties during
-model generation. This project should not claim that generated languages or
-representation search were previously unknown.
+A representation should not trap the solver inside a toy abstraction when the real
+problem demands a database query planner, SAT solver, profiler, debugger, GPU
+compiler, or mature library. Adaptation should expose the right machinery, not
+reimplement it in miniature.
 
-A candidate contribution is a cost-aware, model-conditioned policy that selects
-and incrementally adapts **checked task interfaces**, preserving independently
-specified acceptance criteria, and beats strong fixed representations under
-matched total budgets on held-out task families. Whether that contribution is
-novel or effective requires deeper literature review and experiments.
+## 6. A capability-first adaptation policy
 
-## 11. A philosophical commitment that can survive failure
+Before synthesizing a new interface, compare four routes:
 
-The goal is not the smallest language, the strangest language, or a language with
-a ten-second lifespan. It is the right boundary between decisions the solver
-should make and obligations the machinery should discharge.
+1. **DIRECT:** native code and standard tools;
+2. **LIBRARY/FIXED API:** native code plus a mature task-relevant abstraction;
+3. **FIXED RESTRICTED INTERFACE:** known stable DSL/schema/type system;
+4. **ADAPTIVE:** task/model-conditioned selection, macros, constraints, tutorial,
+   or schedule choices over implemented semantics.
 
-A negative experiment can be useful: perhaps familiar library calls win, perhaps
-stable domain capsules amortize but per-task syntax does not, or perhaps the value
-comes from explicit contracts rather than language adaptation. The system should
-be designed to discover those outcomes instead of defining success as “a language
-was generated.”
+Choose the cheapest plausible route that preserves the contract. The adaptive route
+has to earn its design cost.
 
-The strongest enduring thesis is this: **representations can be optimized as part
-of computation, while their meanings and evidence remain accountable.**
+A practical model for representation choice should extract task features such as:
 
-[mlir]: https://mlir.llvm.org/docs/LangRef/
-[sketch]: https://people.csail.mit.edu/asolar/sketch2012/
-[dreamcoder]: https://arxiv.org/abs/2006.08381
-[autodsl]: https://aclanthology.org/2024.acl-long.659/
-[amaze]: https://xinpl.github.io/papers/popl26b.pdf
-[typegen]: https://arxiv.org/abs/2504.09246
+```text
+semantic domain
+algorithm family / uncertainty
+state/effect complexity
+shape/layout/numerical constraints
+available mature libraries
+backend/tool capabilities
+expected failure modes
+performance bottleneck candidates
+reuse horizon
+model familiarity with candidate interfaces
+remaining budget
+```
+
+Then predict whether a representation change will reduce expected search/repair
+cost enough to justify acquisition and validation. This policy itself can improve
+over time from measured outcomes; it should not define success as “a capsule was
+produced.”
+
+## 7. Representation leverage for difficult codebases
+
+The strongest use case is not necessarily a tiny expression language. Large
+engineering tasks contain search spaces at several levels.
+
+### Architecture
+
+A model may need to choose ownership boundaries, dependency direction, state
+placement, extension points, and compatibility surfaces. A compact component graph
+or typed service/module interface can make forbidden cycles and data ownership
+obvious before code generation.
+
+### State and concurrency
+
+State-machine representations can expose legal transitions, idempotency, retry
+semantics, cancellation, locks/ownership, message ordering, and failure recovery.
+They are worthwhile when these constraints dominate correctness; they are ceremony
+when the task is a pure function.
+
+### Data and performance
+
+Tensor layouts, batch dimensions, database cardinalities, memory ownership,
+serialization boundaries, and I/O patterns often determine the right algorithm.
+A representation that makes these quantities first-class can prevent a locally
+clean but globally expensive implementation.
+
+### Backend schedule
+
+For kernels or compilers, separate semantic algorithms from mapping decisions such
+as tiling, vectorization, threads, memory spaces, fusion, and reduction strategies.
+Expose a small legality-checked schedule space when those choices are the actual
+optimization problem. Do not make hardware scope define mathematical scope.
+
+### Legacy compatibility
+
+For mature systems, a representation can summarize external behavior, invariants,
+and call/data dependencies while leaving existing code as the implementation. The
+right abstraction reduces context without pretending the old system is simpler
+than it is.
+
+## 8. Tool intelligence is part of the representation
+
+Parallax should optimize the **question-answering loop** between model and tools.
+The preferred debugging pattern is:
+
+```text
+observe
+  -> localize
+  -> form competing hypotheses
+  -> choose the experiment that best separates them
+  -> repair the root cause
+  -> re-evaluate the affected obligation
+```
+
+Representation quality affects every arrow. Types can localize a dataflow mismatch;
+a stable IR can show whether lowering changed behavior; a profiler can reveal the
+real bottleneck; a property test can distinguish two algorithm hypotheses; a
+compiler diagnostic can expose an illegal schedule.
+
+Tool calls without a question are process overhead. Conversely, prose reasoning
+should not replace a cheap decisive tool result. A capable system chooses tools for
+information gain.
+
+## 9. Reversible autonomy reduces process latency
+
+Engineering agents lose capability when every local uncertainty becomes a handoff.
+A representation or task packet should distinguish:
+
+- **contract-changing uncertainty:** can alter output, safety, compatibility,
+  permissions, or an irreversible architecture choice; resolve externally;
+- **implementation uncertainty:** several reversible internal choices satisfy the
+  same contract; choose one, inspect the result, and adjust if evidence demands.
+
+This keeps autonomy where experimentation is cheap while preserving human/task
+owner authority where a guess would redefine success.
+
+## 10. The unit of adaptation is not the unit of trust
+
+A capsule can be disposable. The semantics it invokes cannot be disposable if old
+artifacts must remain interpretable.
+
+Generated data may select an existing capability; it cannot grant itself a new one.
+A new primitive or backend changes the trusted implementation base and needs an
+explicit versioned engineering change. A final task oracle must remain outside the
+same adaptive loop that is trying to satisfy it.
+
+This naturally produces three distinct objects:
+
+```text
+contract  -> what success means
+interface/program -> how the solver expresses a candidate
+result/evidence -> what the trusted machinery observed
+```
+
+Keeping these roles separate is not governance for its own sake. It prevents the
+system from “improving” by changing the problem or accepting its own answer.
+
+## 11. Semantic domains should stay plural
+
+A universal graph container can be convenient, but it does not erase domain
+semantics. Tensors, transactions, protocols, memory ownership, and distributed
+state have different observations and correctness relations.
+
+[MLIR](https://mlir.llvm.org/docs/LangRef/) is relevant as infrastructure for
+extensible operations/dialects; it is not evidence that one generated dialect
+automatically has sound semantics. [Halide](https://halide-lang.org/) demonstrates
+the leverage of separating algorithms from schedules. These precedents support
+modular semantic packs rather than a claim that Parallax should invent one universal
+meaning for every engineering object.
+
+A future cross-domain system should connect components through explicit interfaces
+for data, effects, errors, ownership, concurrency, numerical relations, and
+versioning. Textually matching signatures are not enough when observable behavior
+differs.
+
+## 12. Learning and reuse are empirical resources
+
+Models can acquire interfaces in context, but instruction consumes tokens and can
+introduce misinterpretation. Syntax/tutorials may overfit a model version. Repeated
+adaptation on the same benchmark can leak task structure into the representation
+policy.
+
+Measure:
+
+- cold interface construction versus warm reuse;
+- instruction/context cost;
+- acquisition failures and syntax/type errors;
+- functional failures after structural admission;
+- repair attempts and tool cost;
+- model/decoder sensitivity;
+- semantic dependency footprint;
+- cache reuse horizon and invalidation conditions.
+
+Cache useful domain capsules or helper sets when their semantic/backend dependencies
+still match. Do not carry empirical success rates across changed models or targets
+as if they were guarantees.
+
+## 13. Research hypotheses that can fail
+
+Parallax should pursue hypotheses with discriminating experiments rather than a
+philosophy that is true by definition.
+
+**H1 — invariant exposure improves first-pass correctness.** Interfaces that make
+critical dataflow/state/numerical invariants explicit increase acceptable first
+serious attempts relative to equally informed native-code prompts.
+
+**H2 — adaptive selection beats full fixed surfaces in some regimes.** With syntax,
+algorithm inventory, and total budget controlled, task/model-conditioned operation
+selection improves acceptable-result probability for domains with large irrelevant
+API surface.
+
+**H3 — reusable abstraction pays after amortization.** Checked compositional helpers
+reduce total solve cost over a declared task horizon after charging construction,
+validation, and cache invalidation.
+
+**H4 — diagnostic structure improves recovery.** Type/schema/IR boundaries reduce
+attempts or time to root-cause repair on semantic failures, beyond merely reducing
+parse errors.
+
+**H5 — legal schedule spaces improve systems code.** Given a real backend and fixed
+operator semantics, models selecting among legality-checked schedule choices reach
+better accepted target performance than unconstrained low-level generation or a
+single fixed schedule under comparable budget.
+
+**H6 — adaptation has a negative region.** For familiar tasks with strong native
+libraries or low search complexity, DIRECT/fixed interfaces win because adaptation
+overhead and unfamiliarity dominate. A good policy should predict this region and
+avoid capsule synthesis.
+
+Mechanism-specific ablations are essential. Hold macro power constant while varying
+syntax; hold syntax constant while varying operation selection; give equivalent
+helpers to fixed baselines; compare contract scaffolding without representation
+change; match total inference/tool budget.
+
+## 14. What would count as a contribution
+
+There is substantial precedent for program holes and synthesis
+([Sketch](https://people.csail.mit.edu/asolar/sketch2012/)), learned abstraction
+([DreamCoder](https://arxiv.org/abs/2006.08381)), automated DSL construction
+([AutoDSL](https://aclanthology.org/2024.acl-long.659/)), DSL optimization for
+synthesis ([AMaze](https://xinpl.github.io/papers/popl26b.pdf)), and constrained
+model generation
+([type-constrained code generation](https://arxiv.org/abs/2504.09246)). Parallax
+should not claim these categories as inventions.
+
+A defensible contribution would be an end-to-end policy that:
+
+- identifies which engineering distinctions should be exposed to a given model;
+- constructs or selects a compact checked interface over existing semantics;
+- uses real tool feedback to localize failures;
+- preserves task/oracle independence and host capability boundaries;
+- chooses direct/fixed routes when adaptation is not worth its cost;
+- demonstrates reproducible gains over competitive baselines under matched total
+  budgets on held-out task families;
+- explains *which mechanism* produced the gain through ablation and failure analysis.
+
+A negative result is equally capable of improving the design. Perhaps stable typed
+libraries dominate per-task surfaces; perhaps explicit contracts and diagnostics
+matter more than syntax; perhaps adaptation only pays for schedule search or warm
+reuse. The system should be designed to discover those boundaries.
+
+## 15. Enduring thesis
+
+The lasting idea is not a ten-second programming language. It is a broader
+engineering principle:
+
+> **Representations allocate reasoning. Optimize that allocation, but keep meaning,
+> capability, and acceptance anchored outside the representation being optimized.**
+
+If Parallax can make that choice empirically—selecting the interface that improves
+first-pass correctness, technical leverage, solution quality, and recoverability at
+lower total cost—it becomes useful even when the winning interface is conventional
+code.
