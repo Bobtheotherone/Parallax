@@ -1,70 +1,156 @@
-# Verification strategy and current evidence
+# Verification as engineering diagnosis
 
-**Consumer:** implementer, reviewer, experiment operator.
-[Core evidence profiles](../../core/EVIDENCE.md) define the meaning of evidence;
-this guide defines how development produces and records it. A spec supplies its
-own exact cases and required checks.
+Verification answers a specific question about a specific artifact. It is not a ritual performed after coding and it is not synonymous with “run the largest test suite.”
 
-## Bootstrap evidence baseline
+[Core evidence](../../core/EVIDENCE.md) defines how Parallax describes results. This guide is about selecting high-information checks during implementation and review.
 
-Documentation checks are recorded in the [bootstrap audit](../provenance/BOOTSTRAP-AUDIT.md).
-The [imported example report](../../examples/intseq/EVIDENCE.md) describes source-
-author execution of public reference checks. During this bootstrap, no intseq
-runtime, self-test, implementation test suite, or LLM experiment was executed.
-The Python source was read and hashed, not independently validated.
+## Start from the claim
 
-| Evidence | Establishes when actually obtained | Does not establish |
+Before choosing a tool, state the property that must hold and the plausible ways it could be wrong. Then use the cheapest reliable instrument that distinguishes those possibilities.
+
+```text
+claim -> likely failure modes -> discriminating check -> observation -> decision
+```
+
+Examples:
+
+| Engineering claim | High-value instruments | Typical blind spot |
 |---|---|---|
-| Parsing/schema tests | Recorded accepted/rejected document forms | Types, permissions beyond the parser, task correctness |
-| Admission/type checks | Allowed operations, signatures, scope, capsule binding on checked inputs | Correct task algorithm or correct backend |
-| Expansion checks | Recorded substitution/lowering behavior and bounds | Universal expander correctness |
-| Primitive conformance tests | Agreement with specified examples/properties | Full task satisfaction |
-| Execution result | Evaluator completed or rejected under named limits | Acceptance by a task oracle |
-| Public task tests | Agreement on disclosed inputs | Held-out generalization or proof |
-| Held-out tests | Agreement on inputs withheld under documented custody | Universal correctness or uncontaminated training by itself |
-| Exhaustive bounded enumeration | Every member of the precisely stated finite set checked | The larger input domain |
-| Differential checks | Agreement between named implementation paths | Correctness when both share a defect |
-| Formal proof/checker result | Named theorem under named assumptions accepted by a named checker | Unmodeled runtime/host properties |
-| Native-backend evidence | Named generated artifact tested on a recorded target | Equivalence to every backend |
-| Performance measurements | Observed distributions under a measurement protocol | Estimated speedups, safety, or correctness |
-| Code review | Specific inspected findings and reasoning | Independent ground truth merely from another persona |
+| Code parses/types/links under the supported schema | parser, compiler, typechecker, static analyzer | functional intent |
+| A transformation preserves semantics | exact small cases, properties, differential check, IR inspection, proof where justified | task correctness if both sides implement the wrong task |
+| Functional behavior matches the contract | independent oracle, property/metamorphic tests, bounded exhaustive cases, task-negative counterexamples | untested domain outside the stated scope |
+| Error/resource behavior is correct | boundary cases, fault injection, limit tests, trace/assertions around the relevant state | a test that fails earlier for a different reason |
+| State/concurrency behavior is safe | state-transition invariants, deterministic scheduling where possible, race tooling, stress/fault tests | schedules or failures never exercised |
+| Performance is good for the target workload | profiler, allocation/IO tracing, statistically sound target benchmark | correctness, different hardware/workloads |
+| Native/backend lowering is faithful | reference/differential cases, target execution, numerical/error relation checks | universal equivalence |
+| Security boundary holds | threat-specific negative tests, capability/isolation checks, static/dynamic security tooling | threats outside the model |
 
-Each field retains `NOT_RUN`, `PASS`, `FAIL`, or `NOT_APPLICABLE`, plus scope,
-identities, assumptions, and evidence location. Source-reported historic `PASS`
-values are not current-run `PASS` values. “Verified” without a property and scope
-is not an acceptable completion summary.
+The tool is useful because of the question it answers. Running a tool solely because a workflow names it is ceremony.
 
-## Minimum implementation evidence
+## Build the shortest evidence chain that can fail meaningfully
 
-For a runtime change, cover the supported happy path, specified malformed inputs,
-resource and type boundaries, expansion/capsule binding, and a task-negative case
-that still typechecks. Compare against both contract-derived expectations and
-the frozen reference where the spec requires it. Reference parity alone can
-preserve a shared bug; contract-only tests can miss compatibility drift.
+During development, prefer narrow checks that localize defects before broad checks that only say “something failed.” A productive sequence is often:
 
-Invoke the CLI in a subprocess for exit/stdout/stderr checks; library-only tests
-cannot establish the command interface. Test discovery must report a nonzero
-number of cases. Do not bypass checks with optimized Python assertions or mark
-skips as passes. A failed reference characterization is a real finding.
+1. reproduce the smallest failing case;
+2. inspect the state/IR/dataflow at the suspected boundary;
+3. form at least two plausible hypotheses when the cause is not obvious;
+4. choose an experiment whose outcomes separate those hypotheses;
+5. repair the root cause;
+6. rerun the focused check and the smallest relevant regression set;
+7. run broader acceptance checks once the mechanism is stable.
 
-Record raw evidence in the episode's run directory (a future `runs/<run-id>/`,
-created when a run exists), using [the run template](../../templates/RUN.md).
-Record source revision and dirty-tree state, Python/tool versions, commands,
-exits, result counts, logs, source/artifact hashes, and all missing checks.
-Append new evidence after changes instead of overwriting earlier outcomes.
+This is not an excuse to skip final acceptance. It prevents wasting time on low-information full-suite retries while the defect is still poorly localized.
 
-## Independence and benchmark custody
+## Derive tests from semantics, not implementation shape
 
-Expected answers must not be computed by the same generated AST used for actual
-answers. Document three separate properties: independent authorship, different
-implementation path, and hidden inputs. The public worked example has only the
-second of these. A fresh reviewer can improve review but is not automatically an
-independent task oracle.
+Good tests discriminate between plausible incorrect implementations. Derive them from:
 
-The first coding task may use every public repository file. It is a public
-reference-extraction/conformance task. Any final benchmark oracle must be held
-outside the candidate's writable/readable environment and frozen before trials.
-No such isolation or final oracle has been implemented in this repository.
+- input partitions and semantic boundaries;
+- state transitions and illegal transitions;
+- ordering, aliasing, ownership, and lifetime constraints;
+- empty/singleton/maximum and just-over-limit cases;
+- numerical cancellation, overflow/underflow, exceptional values, and tolerance boundaries where relevant;
+- concurrency interleavings and failure/retry behavior;
+- compatibility contracts with callers/protocols;
+- asymptotic or resource regimes likely to expose the wrong algorithm.
 
-Timing and LLM-quality claims require the
-[benchmark protocol](../benchmarking/PROTOCOL.md), not just passing unit tests.
+A test for every line or branch is not the goal. Ten cases exercising the same mechanism may add less confidence than one carefully chosen counterexample.
+
+For the intseq reference, the well-typed wrong-order example is valuable precisely because it separates structural validity from task correctness. Preserve such counterexamples instead of trying to make every negative case fail at the typechecker.
+
+## Keep expected behavior independent enough to be useful
+
+Expected outputs should not be generated by the exact mechanism being tested. Depending on the task, combine different sources:
+
+- direct mathematical/contract-derived expectations;
+- a simple reference implementation with a different algorithmic path;
+- property or metamorphic relations;
+- differential checks against a mature external implementation;
+- bounded exhaustive enumeration over a finite subdomain;
+- formal models/proofs for properties where that investment is justified.
+
+Independence is multidimensional. Different implementation, independent authorship, and hidden inputs are separate properties. Report the one you actually have.
+
+The public intseq direct-loop oracle is a different implementation path from the AST evaluator but shares project authorship. That is useful differential evidence, not an independently authored or held-out oracle.
+
+## Static correctness and runtime behavior
+
+Use the compiler/type system/static analyzer to remove impossible states when the language can express the invariant. Then test the runtime behavior that static machinery cannot establish.
+
+Do not add dynamic tests for a property already completely enforced by a trustworthy static construction unless the test protects an integration boundary or catches regressions in that enforcement. Conversely, do not claim a source-level restriction proves a target-level property the compiler/runtime can violate.
+
+For generated representations, keep these observations separate:
+
+```text
+schema/admission -> types/scope -> expansion/lowering -> execution -> task acceptance
+```
+
+A pass at one layer is evidence about that layer, not permission to skip the next property the task requires.
+
+## Performance verification
+
+Performance work begins with a hypothesis about the bottleneck, not with timing every function.
+
+1. establish functional correctness for the measured workload;
+2. profile on the real target or the closest available environment;
+3. identify dominant compute, allocation, memory traffic, synchronization, serialization, or I/O costs;
+4. change the mechanism that owns the bottleneck;
+5. measure again with the same workload and protocol;
+6. inspect regressions in tails, memory, throughput, or correctness.
+
+Reason about asymptotics before micro-optimizing constants. For hot paths, consider allocation behavior, data layout/cache locality, batching/vectorization, concurrency, transfer boundaries, and algorithmic complexity. For GPU work, record device/compiler/flags, synchronization, warm-up, workload shapes, and numerical policy. An operation count in the intseq interpreter is not a GPU performance result.
+
+Report distributions or robust summaries when timings are noisy; do not promote a single favorable sample. Microbenchmarks establish microbenchmarks unless their relationship to end-to-end behavior is demonstrated.
+
+## Debugging difficult systems
+
+When a task spans modules, localize by dependency and ownership boundaries:
+
+- What component first observes the wrong state?
+- Which component owns the invariant that should have prevented it?
+- Is the failure in representation, algorithm, implementation, integration, environment, or acceptance?
+- What state transition or data transformation turns good state into bad state?
+- Which experiment would falsify the leading diagnosis fastest?
+
+Use traces/logging only where they expose discriminating state. Use debuggers for control/data inspection, profilers for resource hypotheses, static analyzers for properties they model, and reference implementations when they create an independent comparison path. More logs are not automatically more information.
+
+## Verification scope for a repository change
+
+A change is ready for review when the important claims have evidence proportional to their risk. Typical coverage includes:
+
+- the main externally observable path;
+- realistic boundary/failure cases;
+- changed interfaces and their callers;
+- compatibility obligations;
+- regression checks around the mechanisms touched;
+- task-specific performance/security/resource checks when those are part of the contract.
+
+A library interface and a CLI are different surfaces: library-only tests do not establish subprocess exit/stdout/stderr behavior. Likewise, reference parity can preserve a shared bug, while contract-only tests can miss compatibility drift. Use both when both claims matter.
+
+A skipped or unavailable check remains unavailable. A test suite reporting zero discovered tests is not evidence that the tests passed.
+
+## Evidence worth retaining
+
+Keep enough information to reproduce a consequential claim or diagnose a later failure:
+
+- exact source/candidate revision or artifact identity;
+- command/tool and relevant version;
+- environment/target details that materially affect the result;
+- input or workload scope;
+- observed exit/result/measurement;
+- acceptance/reference identity when it matters;
+- failure details and artifacts needed for diagnosis.
+
+Raw logs are valuable when they contain evidence or support debugging; they are not valuable merely because a process can archive them. Do not overwrite failed results that explain how the final fix was reached when those failures matter to reproducibility or benchmark accounting.
+
+Use `PASS`, `FAIL`, `NOT_RUN`, and `NOT_APPLICABLE` with a property and scope rather than the unqualified word “verified.” Never convert a planned command, historical report, or model assertion into execution evidence.
+
+## Completion and review
+
+Map required checks to the task/spec acceptance criteria. Review the exact changed revision, not an earlier local state. A broad green suite is insufficient when a required property—such as compatibility, a performance target, final oracle acceptance, or a security boundary—was not exercised.
+
+For benchmark claims, use the [benchmark protocol](../benchmarking/PROTOCOL.md); development test passes alone do not establish model-quality or representation-effect claims.
+
+## Historical bootstrap baseline
+
+At the 2026-09-05 documentation bootstrap, `python tools/check_docs.py` and its documentation-tool regression suite were reported as run, while no intseq runtime/self-test, packaged implementation suite, LLM trial, GPU/native execution, or formal proof was run. The detailed historical record is the [bootstrap audit](../provenance/BOOTSTRAP-AUDIT.md), and the source-author intseq report remains [imported evidence](../../examples/intseq/EVIDENCE.md). New development must produce new evidence rather than inheriting those `PASS` labels by reference.
