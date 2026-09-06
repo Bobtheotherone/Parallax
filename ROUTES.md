@@ -1,74 +1,82 @@
-# Context router
+# Context router — experimental branch
 
-Context is an engineering tool. Load the material that can change the next
-technical decision; do not optimize for either minimum file count or maximum
-repository coverage.
+Context is an engineering tool. On this branch every substantial coding task also
+has a **task-language design phase**, so load the material needed both to understand
+the real task and to build a correct lowering path.
 
-A useful default is:
+Default route:
 
-`task/request -> owning semantics/spec -> touched implementation -> discriminating tools`
+`task/request -> owning contract/implementation -> AI-native language synthesis -> frozen language program -> lowering target/tools -> external acceptance`
 
-Follow transitive dependencies only when their meaning is needed. Stable definitions
-can be reused by identity. When a task is genuinely cross-cutting, take the union of
-the relevant routes.
+Read [AGENTS.md](AGENTS.md) first. The mandatory language treatment overrides any
+older suggestion elsewhere that direct/native code should be the default model-facing
+representation.
 
 | Goal | Load first | What the context should help you decide |
 |---|---|---|
-| Implement a repository change | User request or named spec; touched code/files; [AGENTS](AGENTS.md) | Observable contract, dependency direction, data/state ownership, error behavior, algorithm/library choice, highest-value checks |
-| Implement the prepared intseq extraction | [SPEC-001](docs/specs/001-intseq-reference.md), [reference](runtime/REFERENCE.md), selected `intseq` pack docs, touched code | Exact compatibility surface, separation of library/CLI/self-test, resource behavior, conformance checks |
-| Debug a failing implementation | Exact failure/counterexample; owning contract/spec; failing module | Which layer owns the defect and which experiment separates the leading hypotheses |
-| Review a repository change | Contract/spec, exact diff, relevant architecture/semantics, actual verification output | Contract drift, architectural errors, missed edge cases, unsafe capability changes, performance/regression risk |
-| Choose direct vs adapted solving | [CONTRACT](core/CONTRACT.md), [ECONOMICS](core/ECONOMICS.md), available libraries/packs | Whether representation work removes meaningful search or error surface after full cost |
-| Design a capsule | Frozen task, [CAPSULE](core/CAPSULE.md), selected pack, [synthesis algorithm](roles/SYNTHESIZER.md) | Which decisions the model should see, which should be constrained, and how admission/diagnostics expose mistakes |
-| Generate a program | Frozen task, admitted capsule + identity, selected pack/tutorial, [PROGRAMMER](roles/PROGRAMMER.md) | Correct algorithm in the available operations; no semantic or capability invention |
-| Check task satisfaction | Frozen task, candidate result, independent acceptance path, [EVIDENCE](core/EVIDENCE.md), [REVIEWER](roles/REVIEWER.md) | Whether the requested behavior holds, separately from parsing/type/lowering/execution |
-| Diagnose a capsule/program run | Exact diagnostic, [PROTOCOL](core/PROTOCOL.md), owning format/operation | Program bug, capsule bug, identity mismatch, resource limit, missing capability, or task failure |
-| Add a primitive or backend | [EVOLUTION](core/EVOLUTION.md), [SEMANTICS](core/SEMANTICS.md), [HOST](runtime/HOST.md), architecture, implementation spec | New meaning, observation model, lowering/backend obligations, resources, compatibility/version boundary |
-| Optimize performance | Frozen correctness contract, actual implementation/backend, target measurements; domain pack as needed | Real bottleneck, asymptotics, allocation/layout, batching, concurrency, I/O/serialization, numerical/schedule tradeoffs |
-| Reproduce embedded intseq reference | [REFERENCE](runtime/REFERENCE.md), worked [task](examples/intseq/TASK.md), [capsule](examples/intseq/CAPSULE.md), [program](examples/intseq/PROGRAM.md), imported [evidence](examples/intseq/EVIDENCE.md) | Whether a fresh run matches the pinned public reference and exactly what that does or does not establish |
-| Study the GPU design case | [RMSNorm](packs/gpu/RMSNORM.md), [SEMANTICS](core/SEMANTICS.md), [HOST](runtime/HOST.md) | Algorithm vs schedule, reduction scope, numerical/ABI obligations, missing backend evidence |
-| Run a representation experiment | [benchmark protocol](docs/benchmarking/PROTOCOL.md), [ECONOMICS](core/ECONOMICS.md), frozen task(s), actual host/run artifacts | Fair arms, total cost, acceptance custody, causal ablations, meaningful metrics |
-| Research the thesis | [THESIS](research/THESIS.md), [RELATED-WORK](research/RELATED-WORK.md), benchmark protocol, [PROJECT](docs/PROJECT.md) | Mechanism, falsifiable hypothesis, prior work, experiment that would change the design |
-| Maintain docs or provenance | Owning document via the [architecture map](docs/architecture/ARCHITECTURE.md#source-of-truth-map), touched sources, [SOURCE-MAP](docs/provenance/SOURCE-MAP.md), checker source | Whether a statement is authoritative, derived, historical, frozen, or executable; whether links/identities stay coherent |
+| Implement a repository change | User request/spec; touched code/files; [AGENTS](AGENTS.md); [SYNTHESIZER](roles/SYNTHESIZER.md) | Task invariants plus the task-specific language vocabulary/types/dependencies that should encode the change before host code is written |
+| Design the task language | Frozen task; touched architecture/code; [CAPSULE](core/CAPSULE.md); [SYNTHESIZER](roles/SYNTHESIZER.md) | Canonical grammar, operators, types/shapes/states/resources, legal compositions, lowering mapping, and diagnostics |
+| Generate a candidate | Frozen task; frozen task-language definition/identity; [PROGRAMMER](roles/PROGRAMMER.md); lowering contract | Correct algorithm expressed in the generated language before host implementation |
+| Lower into repository code | Task-language program; explicit lowering map; target APIs/libraries/modules/backends | Faithful deterministic translation without silently changing task or language semantics |
+| Implement the prepared intseq extraction | [SPEC-001](docs/specs/001-intseq-reference.md), [reference](runtime/REFERENCE.md), intseq pack docs, touched code, experimental task language | Exact compatibility plus an AI-native representation of the extraction/refactor decisions before Python implementation |
+| Debug a failing implementation | Exact failure/counterexample; task-language definition/program; lowering; failing host module | Whether the defect belongs to language acquisition, algorithm, lowering, host implementation, resource behavior, or acceptance |
+| Review a repository change | Frozen task/spec, generated language/program, exact host diff, relevant architecture/semantics, actual verification | Whether the treatment was genuinely used and whether language→implementation preserved the contract |
+| Check task satisfaction | Frozen task, candidate behavior, independent acceptance path, [EVIDENCE](core/EVIDENCE.md), [REVIEWER](roles/REVIEWER.md) | Whether requested behavior holds separately from language validity/lowering/execution |
+| Add a real primitive/backend | [EVOLUTION](core/EVOLUTION.md), [SEMANTICS](core/SEMANTICS.md), [HOST](runtime/HOST.md), architecture | Whether a generated virtual instruction lowers to existing meaning or requires an actual trusted capability implementation/version change |
+| Optimize performance | Frozen correctness contract, generated language/program, lowering/backend, target profile/measurements | Which low-level algorithm/layout/schedule/resource decisions the task language should expose and whether the backend realizes them |
+| Reproduce embedded intseq reference | [REFERENCE](runtime/REFERENCE.md), worked task/capsule/program/evidence | Pinned compatibility behavior; this is a reference/lowering target, not a waiver of the experimental methodology for new work |
+| Run the `main` vs `experimental` comparison | [benchmark protocol](docs/benchmarking/PROTOCOL.md), same frozen tasks, both branch SHAs, actual run artifacts | Whether mandatory AI-native language synthesis changes accepted-solution quality/cost relative to adaptive Parallax |
+| Research the hypothesis | [PROJECT](docs/PROJECT.md), [THESIS](research/THESIS.md), benchmark protocol, actual experiment data | Mechanism, task families, useful language properties, and evidence that would support/refute the methodology |
+| Maintain docs/provenance | Owning document via architecture map; touched sources; provenance/checker | Historical/current truth and link/identity coherence; trivial prose-only fixes may use `TRIVIAL_DIRECT` |
+
+## Language-design packet
+
+The synthesizer needs enough context to construct a genuinely task-specific language:
+
+- frozen observable task and acceptance policy;
+- current repository/target architecture that constrains lowering;
+- relevant libraries/APIs/semantic packs as **implementation targets**;
+- data shapes, state machines, ownership/effects, numerical/resource rules, and
+  performance constraints that matter;
+- likely algorithm families and failure surface;
+- tool/compiler/backend capabilities actually available.
+
+Do not include final held-out oracle material or secret capabilities. The language
+may describe a requirement; generated text cannot grant it.
+
+## Program-generation packet
+
+Once the language is frozen, the programmer should receive:
+
+- frozen task semantics;
+- frozen language grammar/identity;
+- operator/instruction signatures and lowering meaning;
+- relevant type/shape/state/effect/resource rules;
+- a small set of contrastive examples when needed;
+- exact prior diagnostics permitted by the experiment;
+- required task-language output form.
+
+The programmer should not receive an already-written host-language solution and then
+translate it into the new language. That would not test the proposed mechanism.
 
 ## Route by failure layer
 
-When a result is wrong, do not immediately broaden context or redesign the
-representation.
-
-1. Reproduce the observation on the exact artifact/revision.
-2. Localize it to contract, representation, checker/lowering, backend/runtime,
-   integration/host, or task acceptance.
-3. Read the owning layer plus the narrow dependency that can falsify your leading
+1. Reproduce the exact observation.
+2. Determine whether the earliest failing boundary is task understanding, language
+   definition, task-language program, lowering, host implementation/backend,
+   resource/performance behavior, or external acceptance.
+3. Read the owning layer plus the smallest dependency that can falsify the leading
    explanation.
 4. Run the smallest discriminating experiment.
-5. Repair the root cause and re-evaluate affected boundaries.
+5. Repair the root cause.
 
-This is usually faster and safer than accumulating logs or escalating every failure
-to language evolution.
-
-## Program-generation packet boundary
-
-A solution-generating model needs enough information to solve the task correctly:
-
-- frozen task semantics and input/output/error constraints;
-- the admitted capsule identity and callable operations/macros with preconditions;
-- relevant resource/numerical behavior;
-- compact examples or counterexamples that teach non-obvious composition;
-- exact diagnostics from prior public attempts when permitted;
-- the required output form.
-
-Do not save tokens by deleting semantic meaning. Conversely, architecture history,
-unrelated packs, workflow prose, and final held-out oracle material should not enter
-the packet unless they answer a real question.
-
-The current [intseq packet](examples/intseq/PACKET.md) is a frozen derived view for
-one example. Its source hashes bind that view; it is not a second specification or
-a general context-assembly service.
+Only revise the frozen language between attempts when evidence says its representation
+is the problem. A wrong algorithm expressed perfectly in the language is still a
+wrong algorithm.
 
 ## When broad reading is correct
 
-Whole-system reading is appropriate for architecture changes, authority/routing
-redesigns, semantic evolution, security-boundary work, and research that compares
-system mechanisms. Ordinary implementation and debugging should stay local until
-evidence says the problem crosses a boundary.
+Whole-system reading is appropriate when the task language must span many components,
+when changing architecture/trust boundaries, or when evaluating the methodology.
+Ordinary implementation details should still be loaded because they constrain real
+lowering—not because documentation links exist.
