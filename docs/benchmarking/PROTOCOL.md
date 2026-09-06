@@ -1,212 +1,302 @@
-# Benchmark protocol: engineering capability under matched budgets
+# Benchmark protocol: `main` vs mandatory AI-native language synthesis
 
-**Status:** proposed protocol. No LLM development comparison or adaptive-representation benchmark was executed during the 2026-09-05 bootstrap. The imported intseq run report is reference-runtime evidence, not a model benchmark.
+**Status:** proposed protocol. No completed `main` versus `experimental` LLM
+comparison is claimed by this repository.
 
-The benchmark exists to answer engineering questions, not to validate that a workflow was followed. A run is informative when it fixes the thing being compared, measures the property that matters, and makes alternative explanations hard to confuse with the claimed effect.
+This branch exists to test one primary question:
 
-## Two tracks with different claims
+> For the same coding model, engineering task, starting repository state, tools,
+> acceptance policy, and total budget, does forcing the model to invent and use a
+> new low-level AI-native task language before implementation improve engineering
+> outcomes relative to adaptive Parallax on `main`?
 
-### Track A — engineering-agent capability
+The benchmark must be capable of saying **yes, no, or only under certain conditions**.
+Do not design the comparison so the experimental branch is guaranteed to win.
 
-Question: **How effectively does a specified coding agent solve a bounded repository task?**
+## The two principal arms
 
-A useful Track A task can require repository comprehension, architecture, implementation, debugging, performance reasoning, compatibility work, or integration across modules. The public [SPEC-001](../specs/001-intseq-reference.md) is an initial development pilot: it exposes its reference and public cases, so it can characterize engineering behavior but cannot establish unseen-task generalization.
+### Control — `main`
 
-Track A should distinguish:
+The model follows the `main` `AGENTS.md` contract. It must reason about
+representation choice but may use whichever interface appears strongest:
 
-- **first-serious-candidate quality:** the candidate after the agent's own repository inspection, reasoning, implementation, and public tool use, but before feedback from a final evaluator;
-- **final quality within budget:** the best candidate reached after permitted diagnostics/repairs;
-- **engineering quality:** task-specific properties such as algorithmic complexity, architecture, compatibility, resource behavior, target performance, or maintainability after correctness gates.
+- ordinary native-language coding;
+- mature library/API/DSL;
+- fixed typed/schema interface;
+- Parallax capsule/macros;
+- a novel language if it independently chooses one.
 
-This rewards agents that use tools intelligently before submission rather than agents that simply consume many evaluator-driven retries.
+Do not force the control to avoid good libraries or direct code.
 
-### Track B — representation efficacy
+### Treatment — `experimental`
 
-Question: **For the same model, task distribution, tools, acceptance policy, and total budget, does changing the model-facing representation improve the probability or quality of an acceptable solution?**
+The same model follows the `experimental` `AGENTS.md` contract. For every
+substantial task it must:
 
-The principal quantity is not syntax validity or token count. It is an acceptance/cost curve such as:
+1. freeze/compress the task;
+2. synthesize a new task-specific AI-native language/IR;
+3. freeze its grammar/instruction/type/state/resource/lowering model;
+4. generate the serious candidate in that language;
+5. lower/translate it into real repository code or trusted semantics;
+6. use normal tools and external task acceptance.
+
+Language synthesis and lowering cost are part of the treatment budget.
+
+## What must be held comparable
+
+Within a paired comparison, hold constant or record unavoidable differences in:
+
+- task/specification and acceptance mechanism;
+- starting repository commit/state;
+- model/provider/version and decoding configuration;
+- available context and retrieval mechanism;
+- tools, shell/compiler/debugger/profiler access;
+- target environment/hardware;
+- final-evaluator access/custody;
+- total inference/tool/compute/time budget;
+- number and form of evaluator-driven repair opportunities;
+- task-family split and repetition/seed policy.
+
+The branch-specific Markdown instructions are the intended treatment difference.
+Do not quietly give the experimental arm additional hidden tools or a larger budget.
+
+## Task selection
+
+Use tasks difficult enough that representation choice could plausibly matter.
+Include several structural families rather than many trivial variants of one toy.
+
+Useful task dimensions include:
+
+- multi-module architecture/refactoring with real compatibility constraints;
+- nontrivial algorithms/data structures;
+- protocol/state-machine implementation;
+- ownership/concurrency/resource lifetime;
+- numerical or scientific computation;
+- CPU/GPU/I/O/performance-sensitive work;
+- serialization/compiler/IR transformations;
+- interacting defects where diagnosis matters;
+- tasks with large distracting host-language/library surfaces;
+- tasks where compact task-specific types, dataflow, constraints, or schedules could
+  plausibly help an agent.
+
+Also include some tasks where a mature library or straightforward host-language
+solution is expected to be strong. Those are important negative controls: forced
+language synthesis may be harmful there.
+
+Do not treat typo fixes or trivial constant changes as substantive evidence for the
+methodology.
+
+## First-shot versus repaired performance
+
+Measure both:
+
+**First serious candidate** — the first host implementation produced after the
+method's own permitted task analysis, language synthesis (treatment only), program
+generation, lowering, repository inspection, and public tool use, but before
+feedback from the final evaluator.
+
+**Final candidate within budget** — the best result after permitted diagnostics and
+repairs without exceeding the fixed total budget.
+
+This distinction tests the intended claim that a task language may make the model
+**stronger before evaluator-driven retries**, not merely easier to repair afterward.
+
+## Required treatment artifacts
+
+For the experimental arm retain enough evidence to establish that the methodology
+actually occurred:
+
+- task-language definition/revision/identity;
+- canonical grammar/encoding or sufficient machine specification;
+- instruction/operator vocabulary and relevant types/states/resources;
+- lowering contract/target;
+- candidate program expressed in that language;
+- resulting host implementation/artifact.
+
+Do not require long narration. These artifacts are necessary because an experimental
+run where the agent wrote Python first and invented a DSL afterward is not the
+specified treatment.
+
+For the control arm retain its actual chosen representation and implementation.
+
+## Cost accounting
+
+Charge all causally required work.
+
+### Control
 
 ```text
-P(task accepted with required quality | total budget <= b)
+problem understanding
++ representation decision/adaptation actually used
++ program/host implementation
++ tools
++ repairs
++ verification/execution
 ```
 
-and, when the task includes an optimization objective, target quality of **accepted** solutions as a function of full search cost.
-
-Do not pool Track A and Track B. A good repository implementation demonstrates agent capability; it does not show that an adaptive capsule caused the improvement.
-
-## Define the experimental unit before the tooling
-
-The unit should normally be a **task family instance** with a frozen contract, repository/environment state, acceptance mechanism, and budget. Freeze only information that affects the claim:
-
-- task/spec version and starting source revision;
-- model/provider/decoder configuration that is under experimental control;
-- available tools and target environment;
-- candidate-visible context and examples;
-- acceptance mechanism and final-evaluator access policy;
-- total resource cap and permitted repair feedback;
-- arm/treatment assignment;
-- task-family split and repetition/seed policy;
-- primary metrics and stopping/exclusion rules.
-
-Do not preregister incidental prose or force every command into a schema. Record additional detail when it is needed to reproduce a result, explain a confound, or diagnose a failure.
-
-If a required provider usage field is unavailable, record it as unavailable. Do not turn an estimate into a measured token count.
-
-## Task-suite design
-
-A benchmark that only measures toy syntax errors will optimize Parallax toward toy syntax errors. Select tasks whose difficulty matches the engineering capability being studied.
-
-Useful dimensions include:
-
-- cross-module data/control flow and legacy interfaces;
-- ambiguous but recoverable local design choices;
-- externally meaningful compatibility constraints;
-- nontrivial algorithms or data structures;
-- state machines, concurrency, ownership, resource lifetime, or failure recovery;
-- performance-sensitive CPU/GPU/I/O/serialization paths;
-- incomplete implementations with interacting defects;
-- tasks where an existing library/API is a strong alternative to a new representation.
-
-Split by **structural family or template**, not only random instances of one template. Development/validation families may inform representation design; final families used for a generalization claim must be frozen before the final comparison. Repeated attempts on public SPEC-001 do not become new unseen tasks.
-
-Track likely prior exposure: public examples, tutorial solutions, source archives, cached capsules/programs, and prior attempts. Unknown model pretraining exposure is a limitation, not evidence of contamination-free evaluation.
-
-## Competitive arms
-
-Track B should compare against the strongest practical alternatives relevant to the task, not weak strawmen. Candidate arms include:
-
-1. direct native-language generation;
-2. direct generation using a strong existing library or typed API;
-3. a fixed domain interface/DSL;
-4. a restricted fixed interface using the same semantic inventory;
-5. adaptive operation selection;
-6. adaptive compositional macros/capsules.
-
-Not every experiment needs every arm. Choose the minimal set that can answer the hypothesis and declare omissions before outcomes are known.
-
-Keep task semantics, oracle access, model, tools, and total budget comparable. If an arm receives grammar-constrained decoding, extra retrieval, additional agents, a solver, or privileged implementation access, treat that capability as part of the treatment and account for it.
-
-A useful existing library is a real baseline. Representation synthesis has not won if it recreates a weaker library at higher cost.
-
-## Budget parity and economics
-
-Use [ECONOMICS](../../core/ECONOMICS.md) as the accounting model. Charge all work causally required to obtain the candidate:
+### Treatment
 
 ```text
-contract/context work + retrieval + representation design
-+ macro/tutorial construction + generation + tools
-+ repairs + failed attempts + solver/compiler work
-+ verification/review used by the method + target execution
+problem understanding
++ task-language synthesis
++ parser/checker/spec acquisition work
++ program generation in task language
++ lowering/compiler/translation
++ host implementation/integration
++ tools
++ repairs
++ verification/execution
 ```
 
-Keep dimensions separate where possible: model input/output/reasoning/cache usage, money, wall time, host compute, external tool calls, and human intervention. Parallel work reduces wall time but does not make summed inference/compute free.
+Keep available dimensions separate: model tokens/requests, wall time, money, host
+compute, tool calls, compiler/runtime work, and human intervention.
 
-Report **cold** construction and **warm** reuse separately. If a pack, macro library, or cached capsule is amortized across tasks, state the reuse horizon and show both the up-front cost and marginal cost.
+If exact provider token fields are unavailable, report them unavailable rather than
+inventing values.
 
-Compare methods across one or more fixed total budgets rather than granting a losing arm extra retries until it succeeds. Success-vs-budget curves are more informative than a single arbitrary cap when resources permit.
+## Hard acceptance gates
 
-## Acceptance: hard gates first
+A method has not succeeded merely because it generated a clever language.
 
-The final evaluator is conceptually separate from the candidate pipeline, following [ADR-0003](../architecture/decisions/0003-independent-task-acceptance.md).
+Task-specific hard gates may include:
 
-Hard gates are task-specific. Typical gates include functional behavior, compatibility, prohibited effects, safety constraints, resource limits, and required numerical tolerances. A lower latency, shorter program, elegant architecture, or high weighted score cannot compensate for a wrong result when correctness is a hard requirement.
+- functional correctness;
+- compatibility/protocol behavior;
+- prohibited side effects;
+- safety/resource constraints;
+- numerical tolerances/order requirements;
+- build/integration correctness;
+- required performance threshold.
 
-After hard gates pass, measure the quality dimensions the task actually values. Examples:
+The final evaluator remains conceptually separate from candidate generation.
+Language validity, lowering validity, host execution, and task correctness are
+different observations.
 
-- throughput/latency on a recorded target and workload;
-- peak memory or allocation rate;
-- asymptotic complexity under stated input growth;
-- binary/API/protocol compatibility;
-- recovery behavior under injected faults;
-- architecture properties such as required dependency direction or state ownership;
-- code-review findings under a predeclared technical rubric.
+## Primary metrics
 
-Avoid generic style scores as a primary engineering metric. Prefer observable constraints or expert judgments tied to concrete consequences.
+At minimum record per paired task:
 
-### Final-evaluator custody
+- first-serious-candidate accepted: yes/no;
+- final accepted within budget: yes/no;
+- total measured cost/resource usage;
+- time to accepted result where meaningful;
+- terminal failure class if rejected.
 
-Public tests, compiler diagnostics, traces, and counterexamples are legitimate development feedback. A final held-out evaluator is different: when claiming hold-out performance, keep its code/inputs outside candidate read/write capability and do not feed its failures back into the same run.
+For accepted candidates, add task-specific engineering quality measures such as:
 
-If the environment cannot enforce that separation, report the limitation and make a public-evaluation claim instead. Do not simulate secrecy with a prompt instruction.
+- algorithmic complexity;
+- target latency/throughput;
+- memory/allocation behavior;
+- architecture/dependency correctness;
+- compatibility surface;
+- fault/recovery behavior;
+- numerical accuracy/stability;
+- expert technical review tied to concrete consequences.
 
-## Primary measurements
+## Language-specific secondary metrics
 
-For each task/arm, record at minimum:
+These explain mechanism but are not success by themselves:
 
-- first-serious-candidate acceptance;
-- final acceptance within budget;
-- total cost/resource usage available from the host;
-- time to acceptable result, if meaningful;
-- terminal failure class when no candidate is accepted.
+- language-definition size/token cost;
+- program size/token cost;
+- number of opcodes/types/states;
+- parser/type/state/resource rejection rate;
+- lowering failure rate;
+- proportion of host defects traceable to lowering;
+- model repair edits per accepted result;
+- number of equivalent spellings/canonicalization rate;
+- context reduction relative to host representation;
+- reuse rate on related tasks.
 
-Use task-specific quality metrics for accepted candidates. Useful secondary diagnostics include syntax/type/admission failure, functional failure, resource rejection, repair count, semantic dependency footprint, and performance distributions.
+Do not optimize for language novelty, maximum opcode count, shortest syntax, or
+highest grammar-valid rate at the expense of actual task outcomes.
 
-Do **not** optimize for test count, operation count, raw program count, token entropy, or a generic “verification percentage.” These may diagnose mechanisms but are not the product. Infinitely many padded programs do not imply useful strategy diversity, and a confidently wrong model has low entropy.
+## Failure taxonomy
 
-When a stronger post-hoc audit exists, report false acceptance: candidates that passed the declared public/primary policy but failed the stronger audit. If no stronger audit ran, the false-acceptance rate is unknown, not zero.
-
-## Attribute gains instead of merely observing them
-
-When Track B shows a difference, use the cheapest ablations that discriminate plausible causes. Important separations include:
-
-- **representation vs extra context:** same contract/examples, different interface;
-- **selection vs new algorithmic content:** same macro/algorithm inventory, vary only exposure/serialization;
-- **syntax vs semantic inventory:** same operations/macros, vary syntax/tutorial;
-- **constraints vs extra inference:** match total model/tool budget;
-- **capsule design vs programmer benefit:** count synthesis work and measure both stages;
-- **reuse vs cold-start engineering:** compare warm and cold accounting.
-
-A whole-task macro may be useful engineering. Attribute the algorithmic work to macro construction rather than claiming that a trivial caller discovered the algorithm.
-
-## Failure analysis should improve the system
-
-A failed run is most useful when localized. Classify the earliest material cause, while retaining secondary contributors when needed:
+Classify the earliest material failure:
 
 - task/contract misunderstanding;
-- representation acquisition error;
-- representation too restrictive for the attempted strategy;
-- algorithm/design error despite valid representation;
-- implementation/integration defect;
+- **language synthesis/acquisition failure**;
+- **language too restrictive or poorly structured**;
+- **task-language algorithm error despite valid representation**;
+- **lowering/translation defect**;
+- host implementation/integration defect;
 - backend/tool capability missing;
 - resource/budget exhaustion;
 - performance design failure;
-- evaluator/infrastructure failure.
+- final evaluator/infrastructure failure.
 
-Then ask what experiment would distinguish competing explanations. For example, a high typecheck rate with low task acceptance points toward algorithm/task reasoning, not necessarily a need for more type rules. Repeated timeouts with a correct asymptotic design may point to implementation constants or tool overhead rather than representation failure.
+This taxonomy matters because a treatment can fail for very different reasons. A
+well-designed language with a bad algorithm is evidence about solver reasoning; a
+good language program with a broken lowerer is evidence about compiler complexity.
 
-Search failure is not proof of unexpressibility. Claim bounded unexpressibility only with a complete finite search or a valid domain argument.
+## Mechanism ablations
+
+If the treatment shows a difference, use targeted ablations to understand why.
+Useful follow-ups include:
+
+1. same experimental instruction inventory but human-friendly versus AI-native
+   canonical syntax;
+2. same language but inferred versus explicit types/shapes/states;
+3. same semantics but canonical single spelling versus syntactic aliases/sugar;
+4. same language program with deterministic generated lowering versus model-written
+   lowering;
+5. low-level task-specific IR versus a generic generated DSL;
+6. cold per-task language versus a warm reused task-family language;
+7. language-only context versus language plus full host-library documentation.
+
+Do these only after the primary branch comparison; do not multiply arms before the
+basic treatment is understood.
+
+## Model dependence
+
+The central idea is specifically about **how LLMs/agents operate**, so model
+heterogeneity matters. A representation that helps one model may hurt another.
+
+When resources permit, repeat across models with different training, context,
+reasoning, code-generation, and tool-use characteristics. Do not generalize a result
+from one model family to “LLMs” without qualification.
 
 ## Statistical analysis
 
-Use paired comparisons when arms solve the same task instances. Treat tasks/families—not retries—as the independent sampling units. Report raw per-task outcomes and heterogeneity before pooled summaries.
+Use paired tasks: both arms solve the same task instance from the same starting
+state. Treat task/family—not retries—as the independent unit.
 
-For stochastic runs, predeclare repetition and seed/order policy. A task/family-clustered paired bootstrap is a reasonable default for uncertainty intervals when its assumptions match the design; hierarchical models may be useful with multiple task families/models. Do not choose sample size or stopping rules after inspecting significance.
+Report raw per-task outcomes and heterogeneity before pooled summaries. For
+stochastic runs, freeze repetition/seed/order policy before inspecting results.
+Paired bootstrap or hierarchical task-family analysis can be used when sample size
+supports it.
 
-A one-task or small public pilot can discover failure modes and estimate feasibility. It cannot support a general performance ranking.
+A one-task experiment is a pilot, not proof of a universal methodology.
 
-## Stopping and infrastructure failures
+## Stop rules
 
-Stop a run on the first result that meets the frozen acceptance/quality target, total budget exhaustion, user/operator cancellation, or a nonrecoverable capability/safety failure. Use symmetric, predeclared handling for infrastructure faults.
+Stop a run on:
 
-Do not erase rejected candidates from cost accounting. Do not replenish budget because an approach was inconvenient. A task-changing clarification starts a new task version rather than improving the old trial retrospectively.
+- accepted result meeting the frozen quality target;
+- fixed total budget exhaustion;
+- user/operator cancellation;
+- nonrecoverable safety/capability/infrastructure failure.
 
-## Minimal reproducibility record
+Do not replenish the experimental budget because it had to synthesize a language;
+that cost is the treatment. Do not replenish the control because its chosen
+representation performed poorly.
 
-Retain enough to reconstruct the comparison without turning the benchmark into a paperwork system:
+## Interpretation
 
-- task/spec and source revision;
-- arm/treatment and candidate-visible context identities;
-- model/tool/environment identities that matter;
-- budget and actual available usage;
-- produced artifacts and terminal outcome;
-- acceptance mechanism identity/custody and result;
-- raw measurements needed for reported metrics;
-- declared exclusions, infrastructure faults, and human interventions.
+Possible valid conclusions include:
 
-Use [RUN](../../templates/RUN.md) where it is convenient, but the record serves the experiment—not the reverse. Never fabricate missing tool output or historical execution.
+- mandatory AI-native task languages substantially improve difficult engineering;
+- they improve first-shot quality but lose on total cost;
+- they mainly help performance/state/constraint-heavy tasks;
+- they help only after language reuse;
+- they help some model families but not others;
+- they reduce syntax/implementation errors but not algorithm errors;
+- lowering complexity erases their benefit;
+- direct/library coding on `main` is better for most tasks.
 
-## Promotion rule
+Any of these would answer the experiment more honestly than changing the methodology
+after seeing results.
 
-Promote a representation family only when it demonstrates reproducible value against competitive alternatives for a named domain/model/backend/budget regime: higher acceptable-solution probability, lower cost to a target success level, better quality of accepted solutions, or an explicitly valued auditability property at an accepted cost.
-
-Reevaluate after material model, decoder, semantic-pack, backend, task-distribution, or reuse-regime changes. A negative result is useful evidence. The protocol is designed to discover when direct code or an existing library is the better representation.
+The experiment should reward accepted engineering quality, not methodological
+obedience by itself.
