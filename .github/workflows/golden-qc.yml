@@ -20,6 +20,15 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Provenance archive identity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          wc -c docs/provenance/adaptive-representations-source.zip
+          sha256sum docs/provenance/adaptive-representations-source.zip
+          file docs/provenance/adaptive-representations-source.zip
+          xxd -l 32 docs/provenance/adaptive-representations-source.zip
+
       - name: Documentation integrity
         run: python tools/check_docs.py
 
