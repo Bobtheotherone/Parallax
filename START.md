@@ -1,91 +1,132 @@
-# Start here
+# Start here — experimental branch
 
-Parallax has two distinct engineering loops:
+This branch tests one methodology:
 
-`build Parallax` and `solve a task through Parallax`.
+**substantial engineering work must be solved through a newly synthesized AI-native
+task language/IR before host-language implementation is produced.**
 
-Do not confuse them. Repository implementation work changes the machinery; a
-capsule/program episode uses pinned machinery to solve an external task.
+Read [AGENTS.md](AGENTS.md) first. `main` uses adaptive representation choice;
+`experimental` deliberately forces language synthesis so the two methods can be
+compared.
 
 ## Sixty-second problem compression
 
-Before choosing a route, answer five questions:
+Before designing the language, answer:
 
-1. **What observable result is requested?** Identify the task/specification and the
-   acceptance mechanism that owns correctness.
+1. **What observable result is requested?** Identify the task/specification and
+   external acceptance mechanism.
 2. **What must not change?** Capture compatibility, semantics, permissions,
-   numerical behavior, side effects, and performance constraints.
-3. **What already exists?** Inspect the actual repository, libraries, tools,
-   runtimes, examples, and target environment.
-4. **Where is the uncertainty?** Separate semantic uncertainty from implementation,
-   algorithm, integration, resource, or performance uncertainty.
-5. **What experiment would resolve the most important uncertainty?** Prefer a
-   compiler, debugger, reference comparison, focused test, profiler, or small
-   executable probe over speculative process.
+   numerical/effect behavior, and hard performance constraints.
+3. **What structure dominates the task?** Identify data/state shapes, dependencies,
+   ownership, concurrency, resources, schedules, protocol states, or algorithmic
+   choices that determine success.
+4. **What exists as a lowering target?** Inspect repository code, libraries, APIs,
+   semantic packs, compilers, tools, and target environment.
+5. **What should the generated language make explicit?** Identify the decisions that
+   are error-prone or expensive for a model when expressed in the host language.
 
-Proceed autonomously on reversible local choices. Stop for clarification only when
-the unresolved choice can materially change the contract, safety, compatibility,
-irreversible architecture, or requested deliverable.
+Proceed autonomously on reversible local choices. Escalate only uncertainty that
+materially changes the contract, safety, compatibility, irreversible architecture,
+or requested deliverable.
 
-## Build or change Parallax
+## Mandatory experimental pipeline
 
-Start from the user's request or the named implementation spec, then inspect the
-touched code and its dependencies. Use
-[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) when the
-change crosses component or trust boundaries and
-[docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) for the repository's
-development conventions.
+For every nontrivial engineering task:
 
-The currently prepared implementation slice is
-[SPEC-001](docs/specs/001-intseq-reference.md), which packages the embedded
-`intseq` reference without changing its semantics. It is relevant only when that
-work is actually requested.
+```text
+freeze task
+  -> compress problem
+  -> synthesize novel AI-native task language / IR
+  -> freeze language semantics + lowering
+  -> generate solution program in that language
+  -> lower/translate to actual repository code
+  -> build/run/use targeted tools
+  -> external task acceptance
+  -> diagnose language vs algorithm vs lowering vs implementation failures
+```
 
-Implementation priorities are: understand the contract, choose the right
-architecture/algorithm, make the change, then use the most informative available
-checks. Tests are evidence, not the product.
+The task language must be a real structured language as defined by
+[AGENTS.md](AGENTS.md) and [core/CAPSULE.md](core/CAPSULE.md). Do not design the full
+solution in Python/Rust/C++ first and translate it afterward merely to satisfy the
+experiment.
 
-## Solve a task
+A tiny mechanical edit with no meaningful algorithmic/design content may be marked
+`TRIVIAL_DIRECT`. Substantial implementation, debugging, refactoring, architecture,
+performance, integration, or multi-file work is not trivial.
 
-Read [core/CONTRACT.md](core/CONTRACT.md) and
-[core/ECONOMICS.md](core/ECONOMICS.md), then choose the cheapest strong route:
+## Build or change this repository
 
-- **DIRECT** — ordinary code or an existing library already exposes the right
-  abstractions.
-- **CAPSULE** — a checked task-specific interface materially compresses the search
-  space, exposes useful structure, or prevents realistic classes of mistakes.
-- **DESIGN_ONLY** — the required semantics, backend, permission, or acceptance
-  mechanism is unavailable.
+The experimental rule applies to repository coding too. Start from the request or
+named spec, inspect touched implementation/dependencies, then synthesize a compact
+task language that captures the change before editing host code.
 
-For capsule work, use [core/CAPSULE.md](core/CAPSULE.md),
-[core/PROTOCOL.md](core/PROTOCOL.md), and the selected semantic pack. Freeze the
-task and capsule before program generation. The generated artifact does not own
-machine capabilities or task acceptance.
+For example, a repository refactor language might explicitly encode modules,
+interfaces, invariants, state ownership, allowed dependency edges, transformations,
+and acceptance obligations. A performance task language might expose memory regions,
+loops/dataflow, vectorization/schedule choices, synchronization, and resource bounds.
+
+Use [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) when the
+change crosses component/trust boundaries and
+[docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) for ordinary repository
+mechanics. Those documents do not waive the experimental language requirement.
+
+The prepared [SPEC-001](docs/specs/001-intseq-reference.md) remains relevant only
+when that implementation work is actually requested.
+
+## Solve an external task
+
+Read [core/CONTRACT.md](core/CONTRACT.md), [core/CAPSULE.md](core/CAPSULE.md), and
+[core/PROTOCOL.md](core/PROTOCOL.md).
+
+On this branch the route is:
+
+- **LANGUAGE** — mandatory for substantial executable work: synthesize the task
+  language, freeze it, generate the program, and lower it.
+- **TRIVIAL_DIRECT** — only for genuinely mechanical edits where a language would
+  encode no meaningful decision.
+- **DESIGN_ONLY** — required semantics, backend, permission, or acceptance mechanism
+  does not exist and cannot honestly be implemented in scope.
+
+Existing libraries and native languages remain valuable **lowering targets**. They
+are not substitutes for the generated model-facing task language in the treatment
+arm.
+
+## Design the task language
+
+Use [roles/SYNTHESIZER.md](roles/SYNTHESIZER.md) as the language-design algorithm.
+The result should normally specify:
+
+- canonical syntax/serialization;
+- instruction/operator vocabulary;
+- type/shape/state/effect/resource model as relevant;
+- legal composition/control/dataflow rules;
+- task-specific invariants made structural where useful;
+- lowering mapping to real supported machinery;
+- diagnostics;
+- identity/version for the frozen attempt.
+
+Then use [roles/PROGRAMMER.md](roles/PROGRAMMER.md) to generate the candidate in the
+frozen language.
 
 ## Diagnose or review a result
 
-Start from the exact observation, not a generic checklist. Use the failure layer to
-choose context:
+Start from the exact observation and classify it:
 
-- schema/type/operation failures -> capsule/program format and checker;
-- wrong accepted output -> task contract, algorithm, and independent oracle;
-- resource rejection -> runtime policy and algorithm/resource behavior;
-- missing primitive/backend -> supported capabilities and
-  [core/EVOLUTION.md](core/EVOLUTION.md);
-- performance shortfall -> actual target, profiler/measurement, data movement, and
-  algorithm/schedule.
+- language parse/type/shape/state failure -> task-language design or program;
+- language program valid but lowering differs -> lowerer/translation defect;
+- lowered implementation fails build/runtime -> repository/backend defect;
+- implementation executes but task case fails -> algorithm/task-satisfaction defect;
+- resource/performance failure -> algorithm, language-exposed schedule/resource
+  choice, lowering, or backend after measurement;
+- unsupported primitive/backend/capability -> explicit implementation boundary;
+- final evaluator failure -> task correctness, not language validity.
 
-[core/EVIDENCE.md](core/EVIDENCE.md) defines what different checks establish.
-A successful execution is not task acceptance.
+Use the smallest discriminating experiment. Do not redesign the language merely to
+hide an algorithm bug.
 
-## Extend, research, benchmark, or maintain docs
+## Benchmark the hypothesis
 
-Use [ROUTES.md](ROUTES.md) for the smallest authoritative context. New primitives
-or backends require explicit semantics, implementation, resource policy, and
-versioning; research hypotheses do not grant those capabilities. Benchmarks belong
-under the matched-budget methodology in
-[docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md).
-
-For a broad architectural redesign, it is legitimate to read the whole system.
-For ordinary work, context should be selected because it changes a decision, not
-because a link exists.
+Use [docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md) to compare this
+branch with `main` under the same model/task/tools/acceptance and matched total
+budget. Count language synthesis and lowering cost. The purpose is empirical: the
+forced-language method may win, lose, or be conditional.
