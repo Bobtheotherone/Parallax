@@ -1,3 +1,7 @@
 # Parallax
 
-Repository bootstrap in progress. See the bootstrap archive committed alongside this file.
+Task-adaptive representations over stable, checkable semantics.
+
+Pre-production research prototype. This initial commit establishes repository
+history; the documentation bootstrap is developed on `docs/bootstrap-parallax`.
+No packaged runtime is present.
