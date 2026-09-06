@@ -1,134 +1,172 @@
-# Parallax
+# Parallax — experimental language-synthesis branch
 
-**Engineer the representation, keep the meaning fixed.**
+**Design the language for the task, then solve the task through that language.**
 
-Parallax is a research engineering system for giving a coding model the interface
-that best exposes a problem's structure without letting that interface redefine the
-problem. Sometimes the best interface is ordinary code or a mature library.
-Sometimes it is a smaller typed API, schema, DSL, macro set, or schedule space.
-Parallax exists to make that choice explicit, checkable, and measurable.
+This branch tests the original Parallax idea: for every substantial engineering
+task, the coding agent first invents a **new task-specific programming language or
+IR optimized for LLM/agent cognition**, expresses the solution in that language,
+and then lowers it into ordinary repository code, libraries, APIs, or trusted
+backends.
 
-The objective is not “generate a language.” It is to increase the probability of a
-high-quality accepted solution per unit of total engineering cost.
+The language is intentionally not optimized for human friendliness. It should be
+compact, canonical, structurally regular, explicit about dependencies and
+constraints, and easy for a model to generate, check, transform, and repair.
 
-## The mechanism
+This is an experiment. The repository does not assume the methodology is superior;
+it exists to test that question against the adaptive control methodology on
+`main`.
+
+## The experimental mechanism
 
 ```text
-frozen task + acceptance
+frozen task + external acceptance
           |
           v
-choose representation  ----> DIRECT / existing library
+compress task / failure surface
           |
-          +------------> CAPSULE over a pinned semantic pack
-                              |
-                              v
-                    program / implementation
-                              |
-                  check + expand/lower
-                              |
-                              v
-                    interpreter / backend
-                              |
-                              v
-                         behavior
-                              |
-                              v
-                 external task acceptance
+          v
+synthesize NEW AI-native task language / IR
+          |
+          v
+freeze grammar + types + instructions + lowering
+          |
+          v
+generate program in that language
+          |
+          v
+parse / check / lower / translate
+          |
+          v
+ordinary code / library calls / trusted semantic IR
+          |
+          v
+execute / build / integrate
+          |
+          v
+external task acceptance
 ```
 
-A capsule can select operations, constrain invalid choices, expose types, compose
-checked macros, or present examples that reveal the right decomposition. It is
-useful when those choices compress the model's search space or make important
-invariants mechanically visible. It is unnecessary when native code already gives
-the model the stronger interface.
+The language is the model's **primary problem-solving representation**, not a
+post-hoc transcription of a solution already designed in Python, Rust, C++, or
+another host language.
 
-The key separation is:
+## What the generated language should look like
 
-`representation validity != execution != task correctness`
+A valid experimental language should provide a real machine-oriented representation,
+not just renamed host syntax. Depending on the task it may include:
 
-A well-typed program can still implement the wrong algorithm. A generated artifact
-can describe a capability without possessing it. A fast result is irrelevant if it
-fails the task.
+- a deterministic grammar or canonical structured encoding;
+- a small task-specific instruction set;
+- explicit types, shapes, states, ownership, effects, resources, schedules, or
+  constraints;
+- explicit dataflow/control/dependency edges;
+- one canonical spelling for equivalent structures where practical;
+- local legality rules that make invalid states easy to reject;
+- deterministic lowering into supported repository code, APIs, libraries, semantic
+  packs, or backends;
+- terse diagnostics that identify the failing instruction or invariant.
 
-## Engineering principles
+Human readability is secondary. The preferred surface may resemble a compact typed
+IR, SSA, graph serialization, bytecode-like instruction stream, constraint language,
+or another representation that would be unpleasant to hand-author but efficient for
+a model.
 
-Parallax is built around a few hard boundaries:
+The design should minimize aliases, syntactic sugar, implicit coercions, ambient
+state, and stylistic freedom. Novelty must be technically meaningful: the language
+should encode the task's actual decision surface, not merely rename Python tokens.
 
-- **Task meaning is external.** Representation search cannot quietly change the
-  requested output, tolerated errors, input domain, side effects, or acceptance
-  policy.
-- **Semantics are stable and versioned.** Capsules adapt a surface over pinned
-  domain meanings rather than inventing trusted primitives on every attempt.
-- **Generated artifacts are data.** The host grants machine capabilities; a
-  capsule/program cannot grant itself network, filesystem, process, model, native,
-  or oracle access.
-- **Acceptance is separate.** Typechecking, lowering, execution, public tests, and
-  final task acceptance answer different questions.
-- **Total cost matters.** Representation construction, examples, retries, tools,
-  verification, and failed attempts count. A short final program is not evidence
-  that the system solved the task cheaply.
-- **Tools should reduce uncertainty.** Compilers, interpreters, debuggers,
-  profilers, references, differential/property checks, and targeted tests are most
-  valuable when they discriminate between plausible explanations.
+## Meaning remains fixed
 
-See [core semantics](core/SEMANTICS.md), [capsules](core/CAPSULE.md),
-[task contracts](core/CONTRACT.md), and [economics](core/ECONOMICS.md).
+Language invention does **not** authorize task invention.
+
+Parallax retains these boundaries:
+
+- the user's requested behavior and final acceptance policy remain external;
+- generated language definitions/programs are data, not machine authority;
+- a virtual instruction must lower to supported semantics or create an explicit
+  implementation obligation;
+- language validity, lowering correctness, execution, and task correctness are
+  separate questions;
+- existing compatibility identities such as `intseq/0.1`, `arl-capsule/0.1`, and
+  `arl-program/0.1` are not silently redefined;
+- tool, benchmark, execution, and historical evidence is never fabricated.
+
+A new language may contain task-specific virtual instructions/macros, but declaring
+an instruction does not magically create a filesystem permission, GPU primitive,
+network operation, compiler backend, or oracle.
+
+## Why compare this with `main`?
+
+`main` uses adaptive Parallax: direct code, existing libraries, fixed interfaces,
+capsules, and new languages compete on engineering value and cost.
+
+`experimental` intentionally removes that choice. Except for trivial mechanical
+edits, **language synthesis is mandatory**. This lets experiments ask a clean
+question:
+
+> Does forcing a strong coding model to invent and use a low-level AI-native
+> task language improve first-pass correctness, architecture, difficult-task
+> capability, performance reasoning, repairability, or total accepted-solution cost?
+
+Language-design and lowering cost must be counted. A result is interesting whether
+this treatment wins, loses, or helps only on particular task families.
 
 ## Current repository
 
-This is a **pre-production research prototype**, not a deployed coding platform.
+Parallax remains a **pre-production research prototype**. The experimental branch
+changes the agent methodology and design documents; it does not pretend a general
+language-synthesis host/compiler already exists.
 
 Present today:
 
 - the task/semantic/capsule/evidence model and architecture;
-- the stable `intseq/0.1` example pack and legacy `arl-capsule/0.1` /
-  `arl-program/0.1` artifact formats;
-- an embedded standard-library Python reference implementation in
+- this branch's mandatory AI-native language-synthesis method;
+- the stable `intseq/0.1` example pack and legacy `arl-*` artifact formats;
+- an embedded Python intseq reference implementation in
   [runtime/REFERENCE.md](runtime/REFERENCE.md);
-- worked positive and well-typed-but-wrong examples;
-- documentation integrity tooling;
-- [SPEC-001](docs/specs/001-intseq-reference.md), a prepared engineering contract
-  for extracting the embedded reference into an ordinary Python package.
+- worked examples and documentation-integrity tooling;
+- [SPEC-001](docs/specs/001-intseq-reference.md), still a prepared implementation
+  contract rather than evidence of a packaged general runtime.
 
-Not present today: a packaged Parallax runtime, model-orchestration host, isolated
-final oracle, native/GPU backend, production sandbox, or completed LLM
-representation benchmark. The imported intseq run report is historical source
-evidence, not a fresh validation of this repository state.
-
-The project maturity baseline is owned by [docs/PROJECT.md](docs/PROJECT.md).
+The existing intseq capsule is a compatibility example, not the upper bound on what
+an experimental task language may look like.
 
 ## A small example with a large lesson
 
-The worked task sums `3*v + 5` only for values that were nonnegative **before** the
-transformation. Under the intseq capsule, both of these ideas can be well-typed:
+The worked intseq task sums `3*v + 5` only for values that were nonnegative **before**
+the transformation. A task language for this case could make provenance/order an
+explicit dataflow property so the model cannot casually collapse:
 
 ```text
-filter original values -> transform -> sum     # task-correct
-transform -> filter transformed values -> sum  # wrong on [-1, 0]
+FILTER(original >= 0) -> AFFINE(3,5) -> REDUCE_SUM
 ```
 
-The second returns `7`; the task requires `5`. The type system should not be
-“improved” to pretend it knows arbitrary task intent. The right diagnosis is an
-algorithm/order error, found by a separate task oracle. This is the separation
-Parallax is designed to preserve at larger scale.
+into the different computation:
+
+```text
+AFFINE(3,5) -> FILTER(result >= 0) -> REDUCE_SUM
+```
+
+Both can be structurally legal while only the first satisfies the task. This is why
+external task acceptance remains separate even when the generated language makes
+important invariants more explicit.
 
 ## Navigate
 
-- **Start engineering work:** [START.md](START.md)
-- **Select context by question:** [ROUTES.md](ROUTES.md)
-- **Understand project scope:** [docs/PROJECT.md](docs/PROJECT.md)
-- **Understand system boundaries:** [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
-- **Design a task-adapted interface:** [core/CAPSULE.md](core/CAPSULE.md)
-- **Understand the synthesis loop:** [core/PROTOCOL.md](core/PROTOCOL.md)
-- **Work with intseq:** [packs/intseq/PACK.md](packs/intseq/PACK.md) and
-  [packs/intseq/CAPSULE.md](packs/intseq/CAPSULE.md)
-- **Evaluate the research claim:** [docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md)
-  and [research/THESIS.md](research/THESIS.md)
-- **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Experimental agent contract:** [AGENTS.md](AGENTS.md)
+- **Start experimental work:** [START.md](START.md)
+- **Select context:** [ROUTES.md](ROUTES.md)
+- **Project intent:** [docs/PROJECT.md](docs/PROJECT.md)
+- **Task-language/capsule design:** [core/CAPSULE.md](core/CAPSULE.md)
+- **Synthesis loop:** [core/PROTOCOL.md](core/PROTOCOL.md)
+- **Language synthesizer:** [roles/SYNTHESIZER.md](roles/SYNTHESIZER.md)
+- **Program generator:** [roles/PROGRAMMER.md](roles/PROGRAMMER.md)
+- **Matched comparison:** [docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md)
+- **System boundaries:** [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
 - **Security/trust model:** [SECURITY.md](SECURITY.md)
 
-`python tools/check_docs.py` checks documentation structure, local links,
-provenance coverage, selected frozen identities, and spec metadata. It does not
-execute the intseq runtime or establish semantic/task correctness.
+`python tools/check_docs.py` checks repository/document identities and structure. It
+is not a general compiler for newly synthesized task languages and does not establish
+task correctness.
 
 No project license has been selected.
