@@ -1,0 +1,48 @@
+name: Experimental branch QC
+
+on:
+  push:
+    branches:
+      - experimental
+
+permissions:
+  contents: read
+
+jobs:
+  qc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Documentation integrity
+        run: python tools/check_docs.py
+
+      - name: Documentation checker regressions
+        run: python -m unittest discover -s tools -p 'test_check_docs.py' -v
+
+      - name: Experimental diff whitespace
+        run: git diff --check origin/main...HEAD
+
+      - name: Treatment-surface scope
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'AGENTS.md', 'README.md', 'ROUTES.md', 'START.md',
+              'core/CAPSULE.md', 'core/ECONOMICS.md', 'core/PROTOCOL.md',
+              'docs/PROJECT.md', 'docs/benchmarking/PROTOCOL.md',
+              'roles/PROGRAMMER.md', 'roles/SYNTHESIZER.md',
+              'templates/CAPSULE.md', '.github/workflows/experimental-qc.yml',
+          }
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/main...HEAD'], text=True
+          ).splitlines())
+          assert changed == expected, (sorted(changed), sorted(expected))
+          PY
