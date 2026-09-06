@@ -1,22 +1,54 @@
-# Embedded intseq reference
+# Embedded intseq reference: executable compatibility model
 
-**Status:** source-archive reference implementation, present as a Python fence;
-not a packaged Parallax runtime and not independently validated by this bootstrap.
-The source author supplied a [public run report](../examples/intseq/EVIDENCE.md).
-That report is imported evidence, not a new execution result.
+This document contains the frozen source-archive implementation of `intseq/0.1`.
+Its Python fence is a compatibility artifact, not a packaged runtime, task oracle,
+or security boundary. The normative operation semantics and artifact formats remain
+[PACK](../packs/intseq/PACK.md) and [CAPSULE](../packs/intseq/CAPSULE.md); when prose
+and executable behavior appear to disagree, preserve the smallest reproducer and
+resolve the conflict explicitly rather than silently redefining either side.
 
-The fence below is preserved byte-for-byte under the extraction convention below.
-Its `ARL` docstring and `arl-*` protocol identifiers are compatibility/history,
-not an incomplete branding migration. The intended behavior is specified by the
-[intseq pack](../packs/intseq/PACK.md) and
-[artifact formats](../packs/intseq/CAPSULE.md).
+The Python fence is intentionally byte-stable. `ARL` wording and the
+`arl-capsule/0.1` / `arl-program/0.1` identifiers are preserved compatibility
+history. [SPEC-001](../docs/specs/001-intseq-reference.md) defines the extraction
+work needed to turn this reference into ordinary package code.
 
-The next coding task is [SPEC-001](../docs/specs/001-intseq-reference.md).
-Do not extract or execute this reference merely to complete a documentation task.
-A source/spec contradiction is a defect to report, not permission to rewrite
-semantics. See [host boundaries](HOST.md).
+## Compatibility surface worth understanding
 
-## Reference source
+| Area | Reference behavior that affects implementations |
+|---|---|
+| Documents | UTF-8 Markdown, at most 65,536 bytes, exactly one lowercase `json` fence; surrounding prose has no authority |
+| JSON | Duplicate keys and `NaN`/`Infinity` are rejected; booleans/floats are not integers |
+| Capsule | Exact v0.1 keys, one input `x:VecInt`, selected primitive allowlist, at most 16 macros, 1–8 parameters each |
+| Macro body | Typed lexical expression over the macro's parameters and selected **primitives only**; no macro-to-macro body calls |
+| Program | Exact v0.1 keys; canonical capsule SHA-256 must match before checking/expansion |
+| Expansion | Hygienic lexical substitution; program-level macro calls may nest; expanded primitive IR is re-typechecked |
+| Evaluation | Eager left-to-right argument evaluation; exact integers; sequence operations preserve order; `seq.sum` checks each left-to-right intermediate |
+| Resource policy | depth 32, nodes 4,096, vector length 4,096, magnitude 256 bits, work 250,000; rejection point is observable compatibility behavior |
+| CLI success | `EVALUATED` plus value/IR/hashes and `task_correctness: NOT_CHECKED` |
+| CLI handled failure | exit 2, empty stdout, JSON `REJECTED` detail on stderr; argparse usage errors remain argparse errors |
+| Self-test | Public same-project checks using Python `assert`; never run it with `-O`/`PYTHONOPTIMIZE` when characterizing compatibility |
+
+Two details are easy to accidentally “improve” into incompatibility. First,
+resource equivalence is not mathematical equivalence: evaluation order and
+intermediate magnitude/work checks matter. Second, the checker is deliberately not
+a task oracle: the bundled wrong-order program can typecheck and execute while the
+separate direct-loop task oracle rejects its result.
+
+## Engineering use
+
+Use this source as an executable behavioral model when implementing or refactoring
+the intseq runtime. Characterize observable boundaries instead of mechanically
+copying internal structure. High-value comparisons include rejection **codes**,
+canonical hashes, exact expanded IR, lexical macro scope, intermediate overflow,
+near-limit resource cases, CLI exits/streams, and the typed-but-task-wrong example.
+
+Do not infer properties it does not establish. The reference has no model host,
+process sandbox, task-domain enforcement, final oracle custody, native/GPU backend,
+formal proof, or performance guarantee. Its direct-loop self-test oracle has a
+different implementation path from the AST evaluator but the same project
+authorship and fully public inputs.
+
+## Frozen reference source
 
 ```python
 """ARL intseq/0.1: data-only capsule validator, macro expander and interpreter.
@@ -367,39 +399,45 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-## Manual reproduction of the archived reference
+## Characterize or reproduce it safely
 
-For an explicitly authorized runtime reproduction, inspect the source above,
-then run from the repository root using Python 3.11 or newer. These are
-**reference-reproduction commands, not evidence of execution in this bootstrap**.
-The temporary script is made only from this pinned, reviewed-by-the-reader source;
-never generalize this extraction into execution of arbitrary retrieved fences.
+Execute this source only when the task explicitly requires reference
+characterization and the environment authorizes Python execution. Review the
+pinned fence first. Never generalize this recipe into execution of arbitrary code
+fences from retrieved documents.
+
+From the repository root, the following shell recipe extracts the one reviewed
+Python fence, verifies its preserved identity, and writes it to a temporary file:
 
 ```sh
-python - <<'PYCODE'
+REFERENCE_PATH="$(python - <<'PYCODE'
 from pathlib import Path
 import hashlib
 import tempfile
+
 text = Path('runtime/REFERENCE.md').read_text(encoding='utf-8')
 code = text.split('```python\n', 1)[1].split('\n```', 1)[0] + '\n'
-assert hashlib.sha256(code.encode('utf-8')).hexdigest() == \
-    '4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91'
-p = Path(tempfile.mkdtemp(prefix='parallax-reference-')) / 'reference.py'
-p.write_text(code, encoding='utf-8')
-print(p)
+expected = '4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91'
+assert hashlib.sha256(code.encode('utf-8')).hexdigest() == expected
+path = Path(tempfile.mkdtemp(prefix='parallax-reference-')) / 'reference.py'
+path.write_text(code, encoding='utf-8')
+print(path)
 PYCODE
+)"
+python "$REFERENCE_PATH" --selftest
+python "$REFERENCE_PATH" \
+  --capsule examples/intseq/CAPSULE.md \
+  --program examples/intseq/PROGRAM.md \
+  --input '[-2,-1,0,2]'
 ```
 
-Use the printed path in place of `REFERENCE_PATH`:
+The second invocation is specified to produce value `16`; successful interpretation
+reports `EVALUATED` while `task_correctness` remains `NOT_CHECKED`. The self-test is
+public compatibility evidence with finite scope, not a hidden acceptance oracle.
+Run it without Python optimization because it uses `assert`.
 
-```sh
-python REFERENCE_PATH --selftest
-python REFERENCE_PATH --capsule examples/intseq/CAPSULE.md --program examples/intseq/PROGRAM.md --input '[-2,-1,0,2]'
-```
-
-The second command's specified value is `16`. `EVALUATED` means interpretation
-completed; `task_correctness` stays `NOT_CHECKED`. The self-test has a separate
-direct-loop oracle of the same project authorship. Its public checks neither
-cover the whole task domain nor constitute independent task validation.
-Record fresh results under the [verification guide](../docs/development/VERIFICATION.md);
-do not edit the imported report to make it look like a new run.
+For extraction or refactoring work, compare observable behavior rather than source
+layout alone. Preserve raw commands/results, environment and source identities, and
+any discrepancy under the [verification guide](../docs/development/VERIFICATION.md).
+The [imported evidence report](../examples/intseq/EVIDENCE.md) is historical; a new
+implementation needs fresh evidence rather than inheriting its `PASS` values.
