@@ -1,0 +1,102 @@
+{
+  "bvh": {
+    "status": "PASS",
+    "rays": 4000,
+    "primitives": 317,
+    "hits": 1731,
+    "bvh_primitive_tests": 5488,
+    "brute_force_primitive_tests": 1268000,
+    "bvh_box_tests": 47448,
+    "primitive_test_ratio": 0.00432807570977918,
+    "elapsed_seconds": 0.8202,
+    "scope": "shared primitives, distinct traversal; analytic geometry tests run separately"
+  },
+  "image": {
+    "status": "PASS",
+    "path": "demos/raytracer/render.png",
+    "dimensions": [
+      360,
+      225
+    ],
+    "bytes": 143494,
+    "sha256": "3ddc38ead5118edd5fe23972e8b70451b90ba18af1d050fb282a6adf6555a38c",
+    "scope": "PNG signature, chunks/CRCs, RGB format, dimensions, decompression and scanlines"
+  },
+  "experiment_arm": "CONTROL",
+  "method": "DIRECT",
+  "pinned_base": "2a7a5a48e2e2238a5b02e1f5edffabb475235aad",
+  "work_branch": "demo/raytracer-control",
+  "source_digest_recipe": "sha256(sorted relative path + NUL + bytes + NUL), src/tests Python, checks.py and pyproject.toml",
+  "source_sha256": "26d750eabf693f98d8c31f9e2f9c198a5279bf8ff7d198cdc81e167773e19e65",
+  "environment": {
+    "python": "3.13.5",
+    "pillow": "12.3.0",
+    "platform": "Linux-6.18.35-x86_64-with-glibc2.41",
+    "cpu_quota": "4 CPUs in this container"
+  },
+  "commands": [
+    {
+      "command": "python -m pip install \"setuptools>=77\" \"Pillow>=10\"",
+      "exit": 0
+    },
+    {
+      "command": "python -m pip install --no-build-isolation -e ./demos/raytracer",
+      "exit": 0
+    },
+    {
+      "command": "python -m parallax_raytracer --output ./demos/raytracer/render.png",
+      "exit": 0
+    },
+    {
+      "command": "python -m parallax_raytracer --help",
+      "exit": 0
+    },
+    {
+      "command": "parallax-raytracer --help",
+      "exit": 0
+    },
+    {
+      "command": "python -m unittest discover -s demos/raytracer/tests -v",
+      "exit": 0,
+      "tests": 17
+    },
+    {
+      "command": "python demos/raytracer/checks.py --image ./demos/raytracer/render.png",
+      "exit": 0
+    },
+    {
+      "command": "python -m pip wheel --no-build-isolation --no-deps ./demos/raytracer --wheel-dir /mnt/data/raytracer-evidence/wheels",
+      "exit": 0
+    }
+  ],
+  "quick_start": {
+    "status": "PASS",
+    "method": "extracted the single README shell block and executed it with bash -e from repository root"
+  },
+  "default_render": {
+    "seconds": 23.114,
+    "timing": "CLI perf_counter; scene build, rendering, PNG encoding; one observed run, not a benchmark average",
+    "width": 360,
+    "height": 225,
+    "samples": 4,
+    "max_depth": 7,
+    "workers": 4,
+    "seed": 20260905,
+    "visual_inspection": "PASS; inspected actual image, distinct materials, refraction, reflection, triangle sculpture and shadows",
+    "repeat_png_bytes_identical": true
+  },
+  "wheel_check": {
+    "status": "PASS",
+    "scope": "built wheel installed in a separate target directory; imported from that directory and rendered from /tmp using the existing Pillow environment"
+  },
+  "assurance_limits": [
+    "Public same-author tests, not held-out evidence or a proof.",
+    "Local execution used Python 3.13.5; Python 3.11 syntax parsed. CI is a separate execution record.",
+    "Local Git transport used hash-verified sparse base objects because direct Git/DNS was unavailable."
+  ],
+  "material_failed_probes": [
+    "Initial isolated pip build could not download setuptools because network/DNS was unavailable. Quick Start explicitly provisions the build dependency and disables only build isolation.",
+    "Two provisional 360x225, 9-sample renders exceeded 120-second tool limits; default reduced explicitly to 4 samples and rerun successfully.",
+    "A no-deps wheel render in a venv without Pillow failed as expected for the missing runtime dependency; the wheel was then verified in a separate target with Pillow available."
+  ]
+}
