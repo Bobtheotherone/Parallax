@@ -1,37 +1,61 @@
-# Imported example evidence — not rerun
+# Imported intseq reference evidence — historical record
 
-**Origin:** the source archive author's report, preserved below. The bootstrap
-checked archive and source identities, but did not run these commands or
-independently validate the report. This is not Parallax benchmark evidence.
+This file records a **source-author run from the preserved archive**. It has not
+been rerun by the documentation bootstrap or by this golden rewrite, and it is not
+evidence that a current extracted package passes.
 
-The archive author reports executing these commands against the extracted
-reference source and reading the capsule/program from the original Markdown.
-The `identities` object describes **original archive files**, not a manifest of
-the migrated repository. In particular, the reference Markdown wrapper changed;
-the extracted Python fence did not. See the [source map](../../docs/provenance/SOURCE-MAP.md).
-No historical hash below is asserted to identify a changed current document.
+Use it for two things:
 
-The exhaustive set contains every vector of length 0..4 over integers -3..3:
-`1 + 7 + 49 + 343 + 2401 = 2801`. The random set uses seed `20260905`, lengths
-0..64, and elements in [-1000000,1000000]. These do not exhaust the task's full
-input domain. Additional checks cover the seven primitives, structural
-rejections, resource errors, and lexical macro substitution.
+1. to understand which mechanisms the original reference exercised;
+2. to know the exact historical outputs and identities that must not be rewritten
+   as though they came from a new run.
 
-A deliberately well-typed wrong program returns 7 instead of 5 on `[-1,0]`.
-That result is a passing **negative test of the methodology**: the type checker
-admits the program, and the separate task reference detects its wrong answer.
+The archive/source relationship is documented in
+[the source map](../../docs/provenance/SOURCE-MAP.md). The extracted Python fence
+remains identified by
+`4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91`.
 
-The direct-loop oracle and the AST interpreter are different implementation paths,
-but share project authorship. All tests are public. No independent authorship,
-hidden benchmark, formal proof, GPU execution, native code generation, performance
-win, or improvement in LLM generation quality is claimed.
+## What the reported run establishes
 
-The timestamp is the execution container's UTC clock. Project document dates
-identify the design revision. These are source-reported local evidence, not an externally signed attestation.
-The UTC date is retained from that report; September 6 UTC can fall on September 5
-in America/Anchorage. No new timestamp or successful run is inferred from it.
+According to the archived report, the source author ran the public reference
+self-test and the example CLI successfully under Python `3.13.5`.
 
-## Commands, identities, and captured output
+| Mechanism exercised | Reported scope |
+|---|---:|
+| bounded exhaustive task differential | 2,801 inputs: every vector of length 0..4 over `-3..3` |
+| seeded randomized task differential | 1,000 inputs, seed `20260905`, lengths 0..64, values in ±1,000,000 |
+| primitive differential checks | 700 |
+| rejection checks | 17 |
+| macro lexical-scope check | 1 |
+| example CLI | value `16` |
+| typed-but-wrong negative case | candidate `7`, direct-loop oracle `5` on `[-1,0]` |
+
+The direct-loop oracle and AST interpreter are different implementation paths but
+share project authorship. All these cases are public. This is useful compatibility
+and regression evidence; it is not independent authorship, a hidden benchmark, or
+a universal proof.
+
+The wrong-program case is especially informative: the checker and evaluator are
+supposed to accept the represented computation while the task oracle rejects the
+algorithm. Treating that as a successful negative test protects the architecture's
+separation between representation preservation and task satisfaction.
+
+## What the report does not establish
+
+No held-out evaluation, formal proof, native compilation, GPU execution,
+performance comparison, LLM synthesis comparison, security isolation, or current
+package conformance was run. A hash identifies bytes under a recipe; it does not
+prove their correctness or authorship.
+
+The UTC timestamp below is historical. `2026-09-06` UTC can still be
+`2026-09-05` in America/Anchorage. Do not replace it with the time of a later
+documentation or reproduction run.
+
+The whole-file Markdown hashes in the record identify **original archive files**.
+Some live wrappers have since changed. Preserve those values as provenance rather
+than updating them to make the old report look current.
+
+## Immutable archived report
 
 ```json
 {
@@ -121,9 +145,12 @@ in America/Anchorage. No new timestamp or successful run is inferred from it.
 }
 ```
 
-## Reproduction
+## How to obtain new evidence
 
-Use the reproduction instructions in [runtime/REFERENCE.md](../../runtime/REFERENCE.md). Run both commands in the JSON
-record from the repository root. Expect exit status zero and the displayed
-results; the Python version and timing metadata can differ across environments.
-A changed runtime/pack requires new evidence, not reuse of this report by name.
+Use the reviewed reproduction path in
+[runtime/REFERENCE.md](../../runtime/REFERENCE.md) or the implementation commands in
+[SPEC-001](../../docs/specs/001-intseq-reference.md). Verify the pinned Python-fence
+hash before executing the extracted reference.
+
+A new run should create a new evidence record with its own commit, environment,
+commands, exits, and outputs. Do not edit the JSON above to represent a rerun.
