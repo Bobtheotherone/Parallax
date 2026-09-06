@@ -1,141 +1,180 @@
-# High-agency synthesis protocol
+# Experimental high-agency language-synthesis protocol
 
-This protocol describes how a host or engineering agent should solve a task using
-Parallax. It is a **decision loop**, not a ritualized sequence of reports. The
-standalone intseq reference checks and evaluates artifacts; it does not implement
-this orchestration.
+This branch tests a specific causal treatment: a substantial engineering task is not
+implemented directly in the host language. The agent first synthesizes a new
+AI-native task language/IR, solves the task in that representation, and lowers the
+result into real implementation machinery.
+
+This is a decision loop, not a reporting ritual. The language is mandatory; ceremony
+is not.
 
 ## The loop
 
 ```text
 frozen task
    -> compress problem and failure surface
-   -> choose the strongest low-cost representation
-   -> build one serious candidate
+   -> synthesize task-specific AI-native language L
+   -> freeze L: grammar/types/instructions/lowering
+   -> generate one serious program p in L
+   -> check p and lower it to repository code / trusted semantics
    -> use tools to discriminate likely failures
-   -> repair the root cause or revise the representation between attempts
+   -> repair algorithm/lowering/implementation, or revise L between attempts
    -> external task acceptance
-   -> retain the result and the evidence that changes future decisions
+   -> retain only evidence needed to compare the method
 ```
 
-`DIRECT`, existing-library/fixed-interface, and `CAPSULE` routes are peers. Use
-`DESIGN_ONLY` when required meaning, authority, or executable capability genuinely
-does not exist. A capsule is not the default merely because Parallax can build one.
+For substantive work the normal route is `LANGUAGE`. `TRIVIAL_DIRECT` is reserved
+for genuinely mechanical edits with no meaningful design/algorithmic decision.
+`DESIGN_ONLY` applies when required meaning, implementation capability, permission,
+or acceptance machinery cannot honestly be supplied.
+
+Do not substitute `DIRECT` merely because a host language or library is familiar.
+Those are lowering targets in this treatment arm.
 
 ## First serious attempt
 
-Before generating code/programs, establish enough structure to avoid blind retry:
+Before inventing the language, establish:
 
-- hard contract invariants and acceptance mechanism;
-- relevant existing architecture and dependency direction;
-- data shapes/state transitions and ownership;
-- error, numerical, concurrency, and resource semantics when relevant;
-- the highest-risk unknowns;
-- a plausible algorithm/implementation family and expected complexity;
-- which tools can answer the unknowns cheaply.
+- hard contract invariants and external acceptance mechanism;
+- current repository architecture and lowering targets;
+- data shapes/state transitions/ownership/effects;
+- algorithm families and complexity constraints;
+- numerical, concurrency, memory, I/O, protocol, and resource behavior as relevant;
+- likely model failure modes in the ordinary host representation;
+- the low-level decisions the new language should expose explicitly;
+- which tools can answer high-risk unknowns cheaply.
 
-For a difficult repository task, inspect the implementation paths that own the
-behavior before editing. For a performance task, identify the expected bottleneck
-before optimizing. For a protocol or compatibility task, identify the externally
-observable state machine before changing representation.
+Then synthesize `L` around the decision surface. The language should remove
+irrelevant general-purpose freedom while preserving the choices that determine
+solution quality.
 
-This is not a requirement for a long plan. A few precise invariants and a correct
-mental model are more valuable than a page of status prose.
+## Language synthesis
 
-## Representation selection
+A treatment-valid language normally defines:
 
-Choose the representation that exposes the right decisions and hides only work
-that a trusted reusable implementation can actually discharge.
+```text
+syntax / canonical encoding
+value + reference model
+instruction vocabulary
+operand/result types and shapes
+state/effect/resource/schedule rules as relevant
+composition/control/dataflow rules
+lowering for every executable construct
+diagnostics
+frozen language identity/revision
+```
 
-Use a capsule when it materially:
+Optimize for LLM generation and transformation rather than conventional human source
+style. Prefer canonical forms, small vocabularies, explicit dependencies, fixed
+ordering, low ambiguity, minimal sugar, and local validity.
 
-- removes invalid or irrelevant choices;
-- exposes a useful decomposition not obvious in the native surface;
-- makes important invariants structural/checkable;
-- enables reusable domain machinery or backend expertise;
-- reduces context/search enough to repay acquisition and validation cost.
+The language must be newly adapted to the task. A renamed copy of Python/Rust/C++,
+a prose plan, or an opaque whole-solution macro is not sufficient.
 
-Prefer direct code or an existing library when it already provides those benefits.
-Do not invent syntax to make the output look specialized.
+## Program generation
 
-Freeze a capsule during one program attempt. If its semantics or identity changes,
-that is a new representation episode; regenerate or explicitly migrate dependent
-programs.
+After `L` is frozen, generate the actual candidate algorithm **in `L`**. Do not first
+write the complete host-language solution and reverse-encode it.
+
+Preflight the task-language program for:
+
+- valid instructions/references;
+- compatible types/shapes/states/effects/resources;
+- explicit task-critical dependency/order invariants;
+- implementable lowering targets;
+- bounded structure where required;
+- binding to the frozen language revision.
+
+Only then lower/translate into host code or stable semantic artifacts.
+
+## Lowering
+
+Treat lowering as a real compiler boundary. A valid language program plus a wrong
+translation is a lowering defect, not task failure.
+
+Useful lowering strategies include:
+
+- deterministic source generation;
+- AST/IR generation into an existing compiler;
+- calls into a mature API/library;
+- lowering into a stable Parallax semantic pack;
+- generation of repository edits from an explicit transformation IR;
+- schedule/configuration emission into a backend toolchain.
+
+Generated virtual instructions are allowed when their meaning is explicit through
+lowering. A language declaration cannot create a trusted primitive or machine
+permission by itself.
 
 ## Tool intelligence
 
-Tools are engineering instruments. Select them by the question they answer:
+Choose tools by the boundary/question they test:
 
-| Question | Useful instrument |
+| Question | Instrument |
 |---|---|
-| What code owns this behavior? | repository search, call graph, history, reference implementation |
-| Is the candidate structurally valid? | parser, compiler, type checker, schema/static analyzer |
-| Which hypothesis explains the failure? | minimal reproducer, debugger, trace, targeted instrumentation |
-| Is behavior compatible? | differential test against a pinned path plus contract-derived cases |
-| Where is time/memory going? | profiler, allocation trace, benchmark, hardware counters when justified |
-| Does an invariant hold broadly? | property/model checking, fuzzing, bounded enumeration, formal tool as appropriate |
-| Is the optimization real? | controlled target benchmark after correctness acceptance |
+| Is `L` deterministic/parseable? | generated parser, schema checker, bounded parser probe |
+| Is `p` structurally legal in `L`? | language checker/type/shape/state validator |
+| Does lowering preserve the intended construct? | IR/source inspection, differential microcase, compiler diagnostics |
+| Does host code build/integrate? | native compiler, formatter/static analyzer where informative, integration run |
+| Which hypothesis explains a failure? | minimal reproducer, debugger, trace, targeted instrumentation |
+| Where is performance lost? | profiler, allocation/memory trace, benchmark/hardware counters |
+| Does the final behavior satisfy the task? | external task acceptance mechanism |
 
-Do not accumulate tool output. Seek the highest-information observation that can
-change the next decision.
+Do not accumulate tool output for appearance. Seek the observation that can change
+the next engineering decision.
 
 ## Diagnostic loop
 
-When a candidate fails:
-
 ```text
 observe exact failure
--> localize boundary/component
--> form at least two plausible hypotheses when ambiguity remains
--> choose an experiment whose outcomes distinguish them
--> repair the earliest root cause
--> re-run the smallest affected acceptance slice, then broader checks as needed
+-> localize layer
+-> form competing hypotheses when needed
+-> choose discriminating experiment
+-> repair earliest root cause
+-> re-evaluate affected boundary
 ```
 
-Route by failure class:
-
-| Observation | Likely owner / next move | Do not infer |
+| Observation | Likely owner | Do not infer |
 |---|---|---|
-| Parse/schema/type/arity rejection | Program or representation shape | New primitive needed |
-| Capsule/program identity mismatch | Frozen artifact binding | Safe to ignore identity |
-| Typed result fails task case | Algorithm or contract understanding | Type system should encode the oracle |
-| Wrong state/effect/order | Algorithm/architecture boundary | More syntax will fix semantics |
-| Unsupported lowering/backend | Implementation capability | Imagined compilation is evidence |
-| Runtime resource rejection | Algorithm, schedule, or declared limit | Mathematical result is wrong |
-| Slow accepted result | Profile real bottleneck; revise algorithm/layout/schedule | Operation count identifies bottleneck |
-| Numerical drift | Numerical relation/order/format/backend | Algebraic equality guarantees FP equality |
-| Repeated failures trace to awkward interface | Representation revision between attempts | Rewrite the task or final oracle |
-| Demonstrated missing semantic capability | Versioned extension proposal | Generated data may self-authorize it |
+| Language parse/schema failure | `L` definition or generated `p` | Host implementation is wrong |
+| Language type/shape/state failure | `p` or language constraints | New trusted primitive required |
+| Valid `p`, wrong lowered structure | lowerer/translation | Task semantics should change |
+| Host build/integration failure | lowering target / repository implementation | Language necessarily failed |
+| Host executes but task counterexample fails | algorithm/task understanding | Parser/type system should encode final oracle |
+| Repeated agent mistakes caused by awkward `L` | language design | Task should be weakened |
+| Missing backend/primitive | actual capability boundary | Generated instruction authorizes it |
+| Resource/performance failure | algorithm/language schedule/lowering/backend | Syntax length identifies bottleneck |
 
-Search exhaustion establishes only that the selected search failed under its
-budget. Claim bounded unexpressibility only with a complete argument over a stated
-finite/structured space.
+A language revision occurs between attempts. Freeze each revision before generating
+its dependent program.
 
 ## Budget behavior
 
-For ordinary engineering, allocate budget adaptively: spend more where uncertainty
-and failure cost are high, less on already-settled mechanics. Stop retrying a route
-when another representation or algorithm has higher expected value.
+For this experimental branch, **language synthesis cost is mandatory treatment cost,
+not a reason to skip the treatment**. Count it honestly.
 
-For measured experiments, freeze total budgets/stopping rules before scoring and
-apply them symmetrically across arms. The historical small candidate-count defaults
-may be useful pilot settings, but they are not universal engineering constants.
+Within the language-design stage, spend budget where it increases information or
+representation leverage. Do not create elaborate syntax for its own sake. Stop
+adding language features when they do not encode a task-relevant decision or reduce
+agent ambiguity.
+
+For measured `main` vs `experimental` comparisons, freeze symmetric total budgets and
+count language design, parser/checker/lowering work, program generation, host code,
+tools, repairs, and failed attempts.
 
 ## Acceptance and terminal outcomes
 
-Execution is not acceptance. After a candidate is checked and run, evaluate it
-against the frozen external task policy. Preserve the final oracle outside generated
-artifact authority.
+Language validity is not execution; execution is not task acceptance.
 
-The compatible terminal labels remain:
+Use:
 
-- `ACCEPTED_UNDER_POLICY` — required acceptance evidence passed for the exact
-  candidate/dependencies;
+- `ACCEPTED_UNDER_POLICY` — final required acceptance passed for the exact language,
+  program, lowering, and candidate dependencies;
 - `REJECTED` — a known requirement failed;
-- `BUDGET_EXHAUSTED` — the allotted search/engineering budget ended without
-  acceptance;
-- `DESIGN_ONLY` — execution cannot honestly proceed because required semantics,
-  capability, or authority is unavailable.
+- `BUDGET_EXHAUSTED` — treatment budget ended without acceptance;
+- `DESIGN_ONLY` — required semantics/capability/authority cannot honestly be made
+  executable in scope;
+- `TRIVIAL_DIRECT` — only a mechanical non-treatment edit with no meaningful
+  language-design content.
 
-Retain failures and decisive diagnostics that improve future decisions. Do not
-produce a ceremonial transcript of every step.
+Retain the generated language/program and decisive evidence when evaluating the
+method. Do not produce a ceremonial transcript.
