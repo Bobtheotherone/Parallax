@@ -4,10 +4,10 @@ This document records what the 2026-09-05 bootstrap studied in BMAD and which id
 
 ## Source pin and method
 
-Repository: `bmad-code-org/BMAD-METHOD`  
-Default branch studied: `main`  
-Pinned commit: **`beb368e5fc9b95bcec5e1de5bc7870dc15bece72`**  
-Source: [pinned GitHub tree](https://github.com/bmad-code-org/BMAD-METHOD/tree/beb368e5fc9b95bcec5e1de5bc7870dc15bece72)
+- Repository: `bmad-code-org/BMAD-METHOD`
+- Default branch studied: `main`
+- Pinned commit: **`beb368e5fc9b95bcec5e1de5bc7870dc15bece72`**
+- Source: [pinned GitHub tree](https://github.com/bmad-code-org/BMAD-METHOD/tree/beb368e5fc9b95bcec5e1de5bc7870dc15bece72)
 
 The bootstrap enumerated the recursive Git tree, then read the canonical English methodology across repository instructions, `docs/`, and `skills/`, including Markdown templates, step files, review prompts, schemas, and relevant TOML persona/customization definitions. The study covered project context, requirements/specification, architecture, implementation, autonomous single-unit work, review/verification, lifecycle state, retrospectives, existing-codebase work, routing, and documentation style.
 
