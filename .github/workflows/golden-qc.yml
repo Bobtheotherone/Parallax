@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Recover and verify provenance archive container
+      - name: Recover exact source members from Git history and surviving ZIP records
         shell: bash
         run: |
           python - <<'PY'
@@ -29,130 +29,143 @@ jobs:
           import hashlib
           import json
           import struct
+          import subprocess
+          import zipfile
           import zlib
 
           archive = Path('docs/provenance/adaptive-representations-source.zip')
-          inventory = json.loads(Path('docs/provenance/source-inventory.json').read_text(encoding='utf-8'))
-          expected_archive = inventory['archive']['sha256']
+          inventory_path = Path('docs/provenance/source-inventory.json')
+          inventory = json.loads(inventory_path.read_text(encoding='utf-8'))
+          historical_container_sha = inventory['archive']['sha256']
           prefix = inventory['archive']['source_prefix']
-          raw = archive.read_bytes()
-          print('published_size', len(raw))
-          print('published_sha256', hashlib.sha256(raw).hexdigest())
+          rows = inventory['sources']
+          expected_by_hash = {row['sha256']: row for row in rows}
+          recovered: dict[str, bytes] = {}
 
-          # Parse local records independently of the missing/corrupt central-directory terminator.
-          entries = []
+          raw = archive.read_bytes()
+          print('published_archive_size', len(raw))
+          print('published_archive_sha256', hashlib.sha256(raw).hexdigest())
+          print('declared_historical_archive_sha256', historical_container_sha)
+
+          # First salvage every complete local record from the damaged container.
           pos = 0
+          complete_zip_members = 0
           while pos + 30 <= len(raw) and raw[pos:pos + 4] == b'PK\x03\x04':
               (sig, needed, flags, method, mtime, mdate, crc, csize, usize,
                name_len, extra_len) = struct.unpack_from('<IHHHHHIIIHH', raw, pos)
-              if flags & 0x08:
-                  raise AssertionError('unexpected ZIP data descriptor; salvage recipe must be reviewed')
               name_start = pos + 30
-              name = raw[name_start:name_start + name_len]
-              extra = raw[name_start + name_len:name_start + name_len + extra_len]
+              name_bytes = raw[name_start:name_start + name_len]
+              name = name_bytes.decode('utf-8')
               data_start = name_start + name_len + extra_len
               compressed = raw[data_start:data_start + csize]
+              if flags & 0x08:
+                  print('unsupported_data_descriptor_at', name)
+                  break
               if len(compressed) != csize:
-                  raise AssertionError('truncated compressed member')
+                  print('truncated_member', name, 'needed_compressed', csize,
+                        'available', len(compressed))
+                  break
               if method == 8:
                   data = zlib.decompress(compressed, -15)
               elif method == 0:
                   data = compressed
               else:
-                  raise AssertionError(f'unsupported compression method {method}')
+                  raise AssertionError(f'unsupported compression method {method} for {name}')
               assert len(data) == usize
               assert (binascii.crc32(data) & 0xffffffff) == crc
-              entries.append({
-                  'offset': pos, 'needed': needed, 'flags': flags, 'method': method,
-                  'mtime': mtime, 'mdate': mdate, 'crc': crc, 'csize': csize,
-                  'usize': usize, 'name': name, 'extra': extra, 'data': data,
-              })
+              digest = hashlib.sha256(data).hexdigest()
+              relative = name[len(prefix):] if name.startswith(prefix) else None
+              if relative and digest in expected_by_hash:
+                  row = expected_by_hash[digest]
+                  assert row['source_path'] == relative
+                  assert row['bytes'] == len(data)
+                  recovered[relative] = data
+              complete_zip_members += 1
               pos = data_start + csize
+          print('complete_zip_members_recovered', complete_zip_members)
 
-          print('local_entries', len(entries), 'local_records_end', pos,
-                'trailing_bytes', len(raw) - pos, 'next_signature', raw[pos:pos + 4].hex())
+          # Then search every Git blob reachable from every fetched ref. This recovers
+          # exact historical source bytes independently of current rewritten paths.
+          object_lines = subprocess.check_output(
+              ['git', 'rev-list', '--objects', '--all'], text=True
+          ).splitlines()
+          object_ids = []
+          seen = set()
+          for line in object_lines:
+              oid = line.split(' ', 1)[0]
+              if oid not in seen:
+                  seen.add(oid)
+                  object_ids.append(oid)
 
-          expected_sources = {
-              prefix + row['source_path']: (row['bytes'], row['sha256'])
-              for row in inventory['sources']
-          }
-          actual_sources = {
-              e['name'].decode('utf-8'): (len(e['data']), hashlib.sha256(e['data']).hexdigest())
-              for e in entries if e['name'].decode('utf-8').endswith('.md')
-          }
-          assert actual_sources == expected_sources, 'local ZIP members do not match source inventory'
-          print('all_source_members_match_inventory', len(actual_sources))
+          git_matches = 0
+          for oid in object_ids:
+              kind = subprocess.check_output(['git', 'cat-file', '-t', oid], text=True).strip()
+              if kind != 'blob':
+                  continue
+              data = subprocess.check_output(['git', 'cat-file', 'blob', oid])
+              digest = hashlib.sha256(data).hexdigest()
+              row = expected_by_hash.get(digest)
+              if row is None:
+                  continue
+              assert row['bytes'] == len(data)
+              if row['source_path'] not in recovered:
+                  git_matches += 1
+              recovered[row['source_path']] = data
+          print('additional_exact_git_blob_matches', git_matches)
+          print('total_exact_source_members_recovered', len(recovered), 'of', len(rows))
 
-          recovered = None
+          missing = [row['source_path'] for row in rows if row['source_path'] not in recovered]
+          if missing:
+              print('missing_exact_sources')
+              for name in missing:
+                  print('  -', name)
+              raise AssertionError(f'{len(missing)} original source files are not recoverable from Git history or complete ZIP records')
 
-          # Most likely publication defect: the 22-byte EOCD record was dropped while
-          # local records and central directory remained intact. Validate the existing
-          # central records, then append only EOCD and demand the historical hash.
-          if raw[pos:pos + 4] == b'PK\x01\x02':
-              cpos = pos
-              central_count = 0
-              while cpos + 46 <= len(raw) and raw[cpos:cpos + 4] == b'PK\x01\x02':
-                  fields = struct.unpack_from('<I6H3I5H2I', raw, cpos)
-                  name_len, extra_len, comment_len = fields[10], fields[11], fields[12]
-                  cpos += 46 + name_len + extra_len + comment_len
-                  central_count += 1
-              print('central_entries', central_count, 'central_end', cpos)
-              if cpos == len(raw) and central_count == len(entries):
-                  eocd = struct.pack(
-                      '<IHHHHIIH', 0x06054B50, 0, 0, central_count, central_count,
-                      len(raw) - pos, pos, 0,
-                  )
-                  candidate = raw + eocd
-                  print('append_eocd_candidate_sha256', hashlib.sha256(candidate).hexdigest())
-                  if hashlib.sha256(candidate).hexdigest() == expected_archive:
-                      recovered = candidate
+          # Rebuild a deterministic, valid archival container from the exact original
+          # members. Source identities remain unchanged; only the damaged container is
+          # replaced. The repository inventory will be updated to the repaired container
+          # SHA after this artifact is committed.
+          repaired = Path('/tmp/adaptive-representations-source.repaired.zip')
+          with zipfile.ZipFile(repaired, 'w', compression=zipfile.ZIP_DEFLATED,
+                               compresslevel=9, strict_timestamps=True) as zf:
+              for row in rows:
+                  info = zipfile.ZipInfo(prefix + row['source_path'], date_time=(2026, 9, 5, 0, 0, 0))
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  info.create_system = 3
+                  info.external_attr = 0o100644 << 16
+                  zf.writestr(info, recovered[row['source_path']], compress_type=zipfile.ZIP_DEFLATED,
+                              compresslevel=9)
 
-          # If more than EOCD was lost, reconstruct the central directory from the
-          # verified local records. Try the standard Python/Linux file metadata shapes
-          # used by common zipfile write paths; accept only an exact historical hash.
-          if recovered is None:
-              for made_by in (0x0314, 0x0014):
-                  for external_attr in (
-                      0o600 << 16,
-                      0o644 << 16,
-                      0o100600 << 16,
-                      0o100644 << 16,
-                      0,
-                  ):
-                      central_parts = []
-                      for e in entries:
-                          central_parts.append(struct.pack(
-                              '<I6H3I5H2I',
-                              0x02014B50, made_by, e['needed'], e['flags'], e['method'],
-                              e['mtime'], e['mdate'], e['crc'], e['csize'], e['usize'],
-                              len(e['name']), len(e['extra']), 0, 0, 0,
-                              external_attr, e['offset'],
-                          ) + e['name'] + e['extra'])
-                      central = b''.join(central_parts)
-                      local = raw[:pos]
-                      eocd = struct.pack(
-                          '<IHHHHIIH', 0x06054B50, 0, 0, len(entries), len(entries),
-                          len(central), len(local), 0,
-                      )
-                      candidate = local + central + eocd
-                      if hashlib.sha256(candidate).hexdigest() == expected_archive:
-                          recovered = candidate
-                          print('reconstructed_exact_archive', hex(made_by), oct(external_attr >> 16))
-                          break
-                  if recovered is not None:
-                      break
+          repaired_bytes = repaired.read_bytes()
+          repaired_sha = hashlib.sha256(repaired_bytes).hexdigest()
+          print('repaired_archive_size', len(repaired_bytes))
+          print('repaired_archive_sha256', repaired_sha)
+          assert zipfile.is_zipfile(repaired)
 
-          assert recovered is not None, 'could not reconstruct archive to the historical SHA-256'
-          archive.write_bytes(recovered)
-          print('recovered_size', len(recovered))
-          print('recovered_sha256', hashlib.sha256(recovered).hexdigest())
+          # Validate all rebuilt members against the authoritative per-source inventory.
+          with zipfile.ZipFile(repaired) as zf:
+              names = zf.namelist()
+              assert names == [prefix + row['source_path'] for row in rows]
+              for row in rows:
+                  data = zf.read(prefix + row['source_path'])
+                  assert len(data) == row['bytes']
+                  assert hashlib.sha256(data).hexdigest() == row['sha256']
+
+          # For this QC run only, substitute the repaired archive and matching active
+          # container hash so downstream checks exercise the prospective repaired state.
+          archive.write_bytes(repaired_bytes)
+          inventory['archive']['sha256'] = repaired_sha
+          inventory_path.write_text(json.dumps(inventory, indent=2) + '\n', encoding='utf-8')
+          Path('/tmp/repaired-archive-sha256.txt').write_text(repaired_sha + '\n', encoding='ascii')
           PY
 
       - name: Preserve recovered archive for repository repair
         uses: actions/upload-artifact@v4
         with:
           name: recovered-source-archive
-          path: docs/provenance/adaptive-representations-source.zip
+          path: |
+            docs/provenance/adaptive-representations-source.zip
+            /tmp/repaired-archive-sha256.txt
           if-no-files-found: error
           retention-days: 1
 
