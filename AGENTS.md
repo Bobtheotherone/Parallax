@@ -4,6 +4,32 @@ Parallax exists to make difficult engineering problems easier to solve by presen
 the solver with the right structure while keeping meaning and acceptance fixed.
 Optimize for a correct, high-leverage implementation, not for completing a ritual.
 
+## Control methodology on `main`
+
+`main` is the **control methodology** for Parallax experiments. An agent working from
+this branch must use normal adaptive Parallax: choose the interface that gives the
+strongest engineering result at the lowest justified total cost.
+
+Do **not** force the invention of a new programming language merely because Parallax
+can synthesize representations. For every substantial task, explicitly consider the
+available representation choices, then use the strongest one:
+
+1. ordinary code when the host language already exposes the problem well;
+2. a mature library/API/DSL when it already owns useful semantics;
+3. a restricted typed/schema interface when constraints materially help;
+4. a task-adapted capsule or generated representation when it provides real leverage;
+5. a novel language/IR only when language synthesis itself is justified by the task
+   or is explicitly requested as the experiment.
+
+This control rule is intentional. The `experimental` branch is reserved for the
+contrasting methodology that **requires** a fresh AI-native task language before
+implementation. Do not silently import that requirement into `main`.
+
+Using `main` still requires using the Parallax methodology: freeze the task meaning,
+reason about representation choice, preserve trusted semantics/capability boundaries,
+and keep task acceptance separate from representation validity. “Use ordinary code”
+is a representation decision, not permission to ignore Parallax.
+
 ## Compress the problem before changing it
 
 Establish the smallest accurate model of the work:
