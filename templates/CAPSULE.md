@@ -1,31 +1,172 @@
-# Capsule template: make the solver's decisions smaller, not hidden
+# Experimental task-language / capsule template
 
-Use this template only for the currently supported `intseq/0.1` capsule format.
-The JSON fence must follow [the exact schema](../packs/intseq/CAPSULE.md); fields
-invented in prose are not executable. A host/checker computes the canonical hash
-after the capsule is finalized.
+Use this template to design the **new AI-native programming language or IR** required
+for a substantial task on the `experimental` branch. The output may be ephemeral or
+persisted with a measured run, but the design should be concrete enough that a model
+can generate a program in it and that the program can be lowered into real code or
+trusted semantics.
 
-## Design the interface before editing the JSON
+For the legacy `intseq/0.1` machine artifact itself, the exact JSON schema in
+[packs/intseq/CAPSULE.md](../packs/intseq/CAPSULE.md) still applies. The experimental
+language may sit above it and lower into it.
 
-Choose the narrowest interface that still supports strong implementations:
+## 1. Language identity
 
-- **Primitives:** include operations the solver genuinely needs. Removing irrelevant
-  surface can help; removing a competitive algorithmic route can hurt.
-- **Macros:** add only transparent, typed compositions that eliminate repeated or
-  error-prone structure. Their meaning is their primitive expansion, and their
-  construction cost is part of the solution cost.
-- **Output type:** make it match the task-facing value produced by programs; the
-  capsule still does not define task correctness.
-- **Examples:** keep them outside the machine artifact. Prefer tiny contrastive cases
-  that teach composition or edge semantics without embedding the whole solution.
+```text
+name/version:
+task or task-family identity:
+frozen task revision:
+primary lowering target:
+language identity/hash if used:
+```
 
-Before freezing, ask: what important decision remains for the programmer? If the
-answer is “none; the macro already encodes the task,” treat the macro as algorithm
-synthesis and account for it accordingly.
+The language should be newly adapted to this task. State briefly what makes its
+machine model materially different from simply writing the host language directly.
 
-## Supported artifact
+## 2. Machine state model
 
-This valid minimal starting point exposes only `seq.sum`:
+Define the objects programs manipulate.
+
+```text
+value/reference form:
+mutation model: immutable SSA | explicit state transition | stack/register | other
+scope/reference rules:
+control/dataflow representation:
+state/effect/ownership model:
+shape/layout/resource/schedule model:
+```
+
+Include only dimensions that affect the task.
+
+## 3. Canonical encoding
+
+Specify one deterministic program representation.
+
+```text
+top-level form:
+instruction form:
+literal/reference form:
+ordering rules:
+allowed identifiers/opcodes:
+forbidden aliases/sugar/implicit coercions:
+```
+
+Optimize for low ambiguity and easy machine generation, not human aesthetics.
+
+## 4. Instruction set
+
+For each opcode define:
+
+| Op | Inputs | Outputs | Preconditions / state | Meaning | Lowering |
+|---|---|---|---|---|---|
+| `<op>` | `<refs/types>` | `<refs/types>` | `<rule>` | `<task-level meaning>` | `<real implementation target>` |
+
+Prefer a small orthogonal basis. Add fused/virtual instructions when they make a
+meaningful task pattern easier for the model and have explicit lowering.
+
+## 5. Types / shapes / states / effects
+
+Define the mechanically relevant legality rules.
+
+```text
+primitive/task-specific types:
+shape/dimension rules:
+state transitions:
+ownership/alias rules:
+effects/capabilities represented:
+resource limits or symbolic resource fields:
+schedule/layout constraints:
+```
+
+Do not pretend these rules enforce arbitrary task correctness. They should encode
+representation invariants, not secretly contain the final oracle.
+
+## 6. Lowering contract
+
+For every executable construct, specify how it becomes real machinery.
+
+```text
+language op -> host AST/source/API/semantic primitive/backend action
+```
+
+Record behavior that can change observables: ordering, evaluation, numerical
+association, errors, effects, lifetime, concurrency, resource use, and target
+configuration.
+
+A generated opcode cannot grant a missing capability. Mark unsupported lowering
+explicitly.
+
+## 7. Diagnostics
+
+Choose compact structured errors useful to another model call.
+
+```text
+PARSE <node/ref> <code>
+TYPE  <inst> <operand> <got> <need>
+STATE <inst> <got-state> <allowed-states>
+RES   <inst> <resource> <got> <limit>
+LOWER <inst> <target> <reason>
+CAP   <inst> <missing-capability>
+```
+
+Adapt the encoding to the language; preserve locality and determinism.
+
+## 8. Contrastive acquisition cases
+
+Give only a few high-information examples.
+
+### Valid
+
+```text
+<small language program>
+```
+
+Why it is legal / what it teaches:
+
+### Invalid representation
+
+```text
+<small invalid program>
+```
+
+Expected diagnostic:
+
+### Structurally valid but task-wrong
+
+```text
+<small language program>
+```
+
+Counterexample / distinction:
+
+This last case is important: it preserves the difference between language validity
+and external task correctness.
+
+## 9. Freeze check
+
+Before giving the language to the programmer:
+
+- grammar/serialization is unambiguous;
+- operator signatures are complete;
+- legality rules are internally consistent;
+- every executable operation has a real lowering or an explicit unsupported status;
+- task-critical distinctions intended to be structural are actually represented;
+- the language does not silently grant host capabilities;
+- the language revision is frozen for the attempt.
+
+## 10. Program handoff
+
+Give the programmer the frozen task plus this language definition. Do **not** give a
+complete host-language solution. The programmer must generate the algorithm in the
+task language first.
+
+---
+
+## Legacy `intseq/0.1` compatibility example
+
+When the lowering target is the repository's current capsule format, the emitted
+machine artifact still obeys the exact supported schema. A valid minimal legacy
+capsule is:
 
 ```json
 {
@@ -38,13 +179,6 @@ This valid minimal starting point exposes only `seq.sum`:
 }
 ```
 
-Edit only `output`, `primitives`, and `macros` within the supported schema. The
-input remains exactly `{"x":"VecInt"}` in v0.1. Macro bodies may use selected
-primitives and their own parameters, not other macros or host capabilities.
-
-## Freeze check
-
-Use the actual checker to validate the final capsule, then compute its canonical
-JSON SHA-256 with the reference/runtime recipe. Freeze that identity before program
-generation. Do not hand-edit a hash, infer admission from visual inspection, or
-change the capsule under an existing identity.
+Only the fields/semantics permitted by the versioned intseq format may appear in
+that artifact. The experimental task language is free to be richer **above** this
+boundary, provided its lowering preserves the established `intseq/0.1` meaning.
