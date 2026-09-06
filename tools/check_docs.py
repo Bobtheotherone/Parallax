@@ -121,40 +121,86 @@ def check(root: Path) -> dict[str, object]:
 
     inventory_path = root / "docs/provenance/source-inventory.json"
     inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-    archive = root / inventory["archive"]["path"]
-    if sha256(archive.read_bytes()) != inventory["archive"]["sha256"]:
-        errors.append("original archive SHA-256 mismatch")
+    archive_info = inventory["archive"]
+    archive = root / archive_info["path"]
+    if sha256(archive.read_bytes()) != archive_info["sha256"]:
+        errors.append("source archive SHA-256 mismatch")
+
     rows = inventory["sources"]
     originals = {row["source_path"]: row for row in rows}
     if len(originals) != len(rows):
         errors.append("duplicate input source-map entries")
-    prefix = inventory["archive"]["source_prefix"]
+
+    unavailable = set(archive_info.get("unrecoverable_sources", []))
+    if unavailable - set(originals):
+        errors.append("source recovery metadata names unknown source files")
+    recovery_status = archive_info.get("status", "complete")
+    if unavailable and recovery_status != "partial-recovery":
+        errors.append("unrecoverable source list requires partial-recovery archive status")
+    if not unavailable and recovery_status == "partial-recovery":
+        errors.append("partial-recovery archive status requires unavailable sources")
+    if unavailable and not archive_info.get("historical_declared_sha256"):
+        errors.append("partial source recovery must preserve historical declared archive SHA-256")
+    if unavailable and archive_info.get("recovered_source_count") != len(originals) - len(unavailable):
+        errors.append("recovered source count does not match unavailable source list")
+
+    prefix = archive_info["source_prefix"]
     manifest_count = 0
+    expected_archived = set(originals) - unavailable
     with ZipFile(archive) as source_zip:
-        archived = {name[len(prefix):] for name in source_zip.namelist()
-                    if name.startswith(prefix) and name.endswith(".md")}
-        if archived != set(originals) or len(archived) != inventory["markdown_count"]:
-            errors.append("source-map coverage differs from archive Markdown corpus")
+        names = set(source_zip.namelist())
+        archived = {
+            name[len(prefix):]
+            for name in names
+            if name.startswith(prefix) and name.endswith(".md")
+            and name != prefix + "RECOVERY.md"
+        }
+        if archived != expected_archived:
+            errors.append("source-map coverage differs from recoverable archive corpus")
+
         for name, row in originals.items():
-            data = source_zip.read(prefix + name)
-            if len(data) != row["bytes"] or sha256(data) != row["sha256"]:
-                errors.append(f"original source identity mismatch: {name}")
             if not row["disposition"] or not row["targets"]:
                 errors.append(f"missing migration disposition/target: {name}")
             for target in row["targets"]:
                 destination = (root / target).resolve()
                 if not destination.is_relative_to(root) or not destination.exists():
                     errors.append(f"missing migration target: {name} -> {target}")
-        manifest = source_zip.read(prefix + "MANIFEST.md").decode("utf-8")
-        entries = re.findall(r"^\| \[([^\]]+)\]\([^)]*\) \| (\d+) \| `([a-f0-9]{64})` \|$",
-                             manifest, re.MULTILINE)
-        manifest_count = len(entries)
-        if manifest_count != len(archived) - 1:
-            errors.append("original manifest entry count mismatch")
-        for name, size, identity in entries:
+            if name in unavailable:
+                continue
             data = source_zip.read(prefix + name)
-            if len(data) != int(size) or sha256(data) != identity:
-                errors.append(f"original manifest mismatch: {name}")
+            if len(data) != row["bytes"] or sha256(data) != row["sha256"]:
+                errors.append(f"original source identity mismatch: {name}")
+
+        if unavailable:
+            recovery_name = prefix + "RECOVERY.md"
+            if recovery_name not in names:
+                errors.append("partial source archive missing RECOVERY.md")
+            else:
+                recovery = source_zip.read(recovery_name).decode("utf-8")
+                for name in sorted(unavailable):
+                    row = originals[name]
+                    if name not in recovery or row["sha256"] not in recovery or str(row["bytes"]) not in recovery:
+                        errors.append(f"recovery manifest missing unavailable source identity: {name}")
+
+        # MANIFEST.md is itself one of the recovered historical source files. Its
+        # rows remain useful even when some payload bytes were lost before publication:
+        # validate every declaration against the independent inventory rather than
+        # pretending unavailable payloads can be read from the recovery ZIP.
+        if "MANIFEST.md" not in archived:
+            errors.append("recoverable source archive missing original MANIFEST.md")
+        else:
+            manifest = source_zip.read(prefix + "MANIFEST.md").decode("utf-8")
+            entries = re.findall(
+                r"^\| \[([^\]]+)\]\([^)]*\) \| (\d+) \| `([a-f0-9]{64})` \|$",
+                manifest, re.MULTILINE,
+            )
+            manifest_count = len(entries)
+            if manifest_count != len(originals) - 1:
+                errors.append("original manifest entry count mismatch")
+            for name, size, identity in entries:
+                row = originals.get(name)
+                if row is None or row["bytes"] != int(size) or row["sha256"] != identity:
+                    errors.append(f"original manifest declaration mismatch: {name}")
 
     # Compatibility is pinned at executable/machine-readable boundaries, not by
     # requiring explanatory Markdown wrappers to remain byte-identical forever.
@@ -245,6 +291,9 @@ def check(root: Path) -> dict[str, object]:
         "markdown_files": len(paths),
         "local_links_checked": links,
         "source_markdown_files": len(originals),
+        "source_archive_members_available": len(expected_archived),
+        "source_archive_members_unavailable": len(unavailable),
+        "source_archive_status": recovery_status,
         "original_manifest_entries": manifest_count,
         "canonical_json_identities": len(objects),
         "intseq_operation_signatures": len(table_rows),
