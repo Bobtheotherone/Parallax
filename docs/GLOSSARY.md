@@ -1,67 +1,68 @@
 # Parallax glossary
 
-This is a **derived navigation aid**, not a new semantic specification. Parallax
-intentionally keeps authority distributed by concern; when a short definition here
-is insufficient, follow the linked owning document. The complete authority map is
-in [ARCHITECTURE.md](architecture/ARCHITECTURE.md#source-of-truth-map).
+This is a compact navigation aid. Owning documents define the precise behavior;
+when a term is consequential, follow its link. The complete authority map is in
+[ARCHITECTURE.md](architecture/ARCHITECTURE.md#source-of-truth-map).
 
-## Core terms
+## Task and acceptance
 
-| Term | Working meaning | Authority / detail |
+| Term | Working meaning | Authority |
 |---|---|---|
-| **Task contract** | The frozen statement of intended inputs, outputs/relations, effects, errors, numerical policy, prohibited behavior, and acceptance method. Representation search does not get to redefine it. | [CONTRACT.md](../core/CONTRACT.md) |
-| **Requirement owner** | The authority allowed to approve a task-semantic revision. An implementation or generated artifact cannot silently assume this role. | [CONTRACT.md](../core/CONTRACT.md) |
-| **Acceptance oracle / mechanism** | An externally fixed source of expected task observations used to decide whether an artifact satisfies the task. It is distinct from parsing, typechecking, lowering, or execution. | [CONTRACT.md](../core/CONTRACT.md), [EVIDENCE.md](../core/EVIDENCE.md) |
-| **Semantic pack** | A stable, domain-specific set of operation IDs, types, behavior, and relevant resource/numerical policy. A pack is not a universal IR. | [SEMANTICS.md](../core/SEMANTICS.md); current example: [intseq/0.1](../packs/intseq/PACK.md) |
-| **Primitive** | An operation whose meaning belongs to the selected semantic pack and whose implementation belongs to the trusted runtime/backend. Generated content cannot create a new primitive merely by naming one. | [EVOLUTION.md](../core/EVOLUTION.md), [intseq pack](../packs/intseq/PACK.md) |
-| **Capsule** | A temporary task-adapted interface to an existing semantic pack: typically a selected operation subset plus checked compositional macros and related metadata. It does not by itself grant execution authority. | [CAPSULE.md](../core/CAPSULE.md) |
-| **Macro** | A typed compositional expression over admitted operations. In the current intseq subset, its mathematical meaning is its hygienic expansion to permitted primitives. | [CAPSULE.md](../core/CAPSULE.md), [intseq format](../packs/intseq/CAPSULE.md) |
-| **Program** | A generated or authored data artifact expressed against a frozen capsule and bound to its identity. Passing program checks is not the same as satisfying the task. | [intseq format](../packs/intseq/CAPSULE.md), [CONTRACT.md](../core/CONTRACT.md) |
-| **Admission / checking** | Structural, schema, allowlist, signature, scope, identity, type, and documented resource checks performed before/around evaluation. `ADMIT` does not mean “correct solution.” | [PROTOCOL.md](../core/PROTOCOL.md) |
-| **Expansion / lowering** | The checked mapping from capsule-level expressions/macros to the stable primitive representation used by the interpreter/backend. | [SEMANTICS.md](../core/SEMANTICS.md), [CAPSULE.md](../core/CAPSULE.md) |
-| **Primitive IR** | The stable operation tree after supported macro expansion for the current intseq design. It is not claimed to be a native compiler IR or a universal cross-domain representation. | [ARCHITECTURE.md](architecture/ARCHITECTURE.md), [intseq pack](../packs/intseq/PACK.md) |
-| **Representation preservation** | The obligation that expansion/lowering preserves the capsule-specified behavior under stated assumptions. | [SEMANTICS.md](../core/SEMANTICS.md) |
-| **Task satisfaction** | The separate obligation that the resulting behavior satisfies the frozen external task contract. A correctly lowered wrong algorithm still fails here. | [SEMANTICS.md](../core/SEMANTICS.md), [CONTRACT.md](../core/CONTRACT.md) |
-| **Host** | The trusted external integration layer that selects pinned capabilities/backends, routes context, enforces budgets and task-domain policy, controls oracle access, and retains evidence. The full host is not currently implemented. | [HOST.md](../runtime/HOST.md), [ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
-| **Interpreter / backend** | Trusted implementation that gives operational behavior to admitted primitive IR under a pinned resource/numerical policy. It does not own task intent. | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
-| **Evidence profile** | Orthogonal records of what was actually checked—parsing, type/admission, expansion, execution, tests, proofs, backend validation, performance, etc.—with scope and identity. It is not one generic confidence score. | [EVIDENCE.md](../core/EVIDENCE.md), [VERIFICATION.md](development/VERIFICATION.md) |
-| **Frozen identity** | A recorded content/semantic dependency identity used to reconstruct an episode. A hash can bind bytes but is not a correctness proof or an authorship signature. | [CAPSULE.md](../core/CAPSULE.md), [EVIDENCE.md](../core/EVIDENCE.md) |
-| **Resource policy** | Limits applied by the pack/runtime/host to admitted artifacts or execution, such as depth, nodes, integer size, vector length, or work. Rejection under a resource policy is not mathematical incorrectness. | [intseq pack](../packs/intseq/PACK.md), [PROTOCOL.md](../core/PROTOCOL.md) |
-| **Budget** | The predeclared total allowance for retrieval, design, generation, repairs, tools, verification, compute, time, or money in an attempt/experiment. It is broader than evaluator resource limits. | [ECONOMICS.md](../core/ECONOMICS.md), [PROTOCOL.md](../core/PROTOCOL.md) |
+| **Task contract** | Minimum sufficient definition of valid inputs/state, required observations, effects/errors/numerics, environment, constraints, and acceptance. | [CONTRACT](../core/CONTRACT.md) |
+| **Hard invariant** | A fact a correct implementation cannot violate without changing the task, compatibility, safety, or trusted semantics. | [CONTRACT](../core/CONTRACT.md) |
+| **Acceptance mechanism / oracle** | External procedure or source of expected observations used to decide task satisfaction. It is separate from parsing, typechecking, execution, or the candidate's own graph. | [CONTRACT](../core/CONTRACT.md), [EVIDENCE](../core/EVIDENCE.md) |
+| **Task satisfaction** | The obligation that the candidate's externally observable behavior satisfies the frozen task policy. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Failure surface** | Realistic classes of semantic, integration, numerical, concurrency, resource, compatibility, or operational failure the design must consider. | [CONTRACT](../core/CONTRACT.md), [PROTOCOL](../core/PROTOCOL.md) |
 
-## Modes and terminal outcomes
+## Representation and semantics
 
-**`DIRECT`** solves the frozen task without first synthesizing a capsule. It is the
-preferred route when adaptation does not justify its added cost.
+| Term | Working meaning | Authority |
+|---|---|---|
+| **Semantic pack** | Stable domain operations/types plus the observation, error, numerical, resource, and effect rules needed to give them meaning. | [SEMANTICS](../core/SEMANTICS.md); current [intseq pack](../packs/intseq/PACK.md) |
+| **Primitive** | Semantic operation owned by a pack and implemented by trusted runtime/backend code. Generated content cannot create one merely by naming it. | [EVOLUTION](../core/EVOLUTION.md) |
+| **Capsule** | Temporary task/model-facing interface over existing semantics: typically selected operations, restrictions, and checked compositions. It is data, not a privilege grant. | [CAPSULE](../core/CAPSULE.md) |
+| **Macro** | Typed compositional abstraction whose current intseq meaning is its hygienic expansion into admitted primitives. | [CAPSULE](../core/CAPSULE.md), [intseq format](../packs/intseq/CAPSULE.md) |
+| **Program** | Candidate data artifact expressed against a frozen capsule/interface and bound to its identity where the protocol requires it. | [intseq format](../packs/intseq/CAPSULE.md) |
+| **Primitive IR** | Pack-level representation after supported expansion/lowering. It is stable enough for a backend, not claimed to be a universal compiler IR. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Representation preservation** | Obligation that expansion/lowering keeps observations within the pack's stated semantic relation. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Semantic relation** | Relation `R(source,target,assumptions)` defining acceptable equivalence when exact equality is inappropriate, e.g. floating-point or concurrent traces. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Representation leverage** | Reduction in search/engineering difficulty obtained by exposing the right structure, constraints, or reusable machinery—not by mere renaming. | [ECONOMICS](../core/ECONOMICS.md) |
+| **Semantic dependency footprint** | Set of pack/runtime/backend/interface assumptions on which a candidate or empirical result depends. | [ECONOMICS](../core/ECONOMICS.md), [EVOLUTION](../core/EVOLUTION.md) |
 
-**`CAPSULE`** constructs/adopts a bounded representation, freezes it, generates a
-program against it, checks/executes that program, and then performs separate task
-acceptance.
+## Runtime and authority
 
-**`DESIGN_ONLY`** records unresolved obligations without pretending an executable
-solution exists. It is appropriate when required semantics, permissions, or
-capabilities are unavailable or unsafe to assume.
+| Term | Working meaning | Authority |
+|---|---|---|
+| **Admission/checking** | Schema, allowlist, identity, scope, type, and bounded expansion checks. Admission says the artifact is meaningful/permitted, not task-correct. | [PROTOCOL](../core/PROTOCOL.md) |
+| **Lowering / expansion** | Mapping from a higher-level representation to pack/backend-level form under a preservation obligation. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Backend / interpreter** | Trusted implementation that executes admitted semantics under a pinned numerical/resource policy. | [ARCHITECTURE](architecture/ARCHITECTURE.md) |
+| **Host** | Trusted coordinator for context, tool/capability grants, pinned dependencies, budgets, execution, oracle custody, and retained evidence. The full host is not currently implemented. | [HOST](../runtime/HOST.md), [ARCHITECTURE](architecture/ARCHITECTURE.md) |
+| **Capability** | Externally granted ability to perform an effect or use a tool/backend. A generated artifact may request or describe one but cannot self-grant it. | [HOST](../runtime/HOST.md), [EVOLUTION](../core/EVOLUTION.md) |
+| **Resource policy** | Runtime/host limits such as depth, work, memory, vector size, process time, or tool budget. Resource rejection is not automatically task incorrectness. | [SEMANTICS](../core/SEMANTICS.md) |
+| **Frozen identity** | Content/semantic dependency identity used to bind an episode or reconstruct an artifact. Identity is not correctness or authorship proof. | [CAPSULE](../core/CAPSULE.md), [EVIDENCE](../core/EVIDENCE.md) |
 
-The protocol's terminal outcomes—`ACCEPTED_UNDER_POLICY`, `REJECTED`,
-`BUDGET_EXHAUSTED`, and `DESIGN_ONLY`—describe an episode under a declared policy;
-they are not universal proof labels. See [PROTOCOL.md](../core/PROTOCOL.md).
+## Engineering and evidence
 
-## Terms that should not be collapsed
+| Term | Working meaning | Authority |
+|---|---|---|
+| **Discriminating experiment** | Smallest reliable tool/check that produces different expected observations for competing failure hypotheses. | [PROTOCOL](../core/PROTOCOL.md), [EVIDENCE](../core/EVIDENCE.md) |
+| **Counterexample** | Concrete input/state/trace that falsifies a candidate assumption or required property and helps localize the failure. | [EVIDENCE](../core/EVIDENCE.md) |
+| **Evidence profile** | Claim-scoped record of what actually ran/was reviewed, on which artifacts and scope; not a universal confidence score. | [EVIDENCE](../core/EVIDENCE.md) |
+| **Cold cost** | One-time cost to build/admit a pack, backend, representation, tutorial, or other reusable machinery. | [ECONOMICS](../core/ECONOMICS.md) |
+| **Warm cost** | Cost of applying already-built machinery to a new task/attempt under compatible dependencies. | [ECONOMICS](../core/ECONOMICS.md) |
+| **Recoverability** | Ability to localize a failure, retain useful diagnostics, repair the root cause, and re-evaluate without restarting blindly. | [PROTOCOL](../core/PROTOCOL.md) |
 
-- **Identity is not correctness.** Matching a hash establishes content identity
-  under a recipe, not semantic validity, provenance/authorship, or task success.
-- **Typechecked is not task-correct.** A well-typed program may implement the wrong
-  algorithm.
-- **Executed is not accepted.** Producing a result is distinct from an external
-  task oracle accepting it.
-- **Finite tests are not proof.** State the exact tested scope and oracle.
-- **A capsule is not a sandbox.** Data-only syntax narrows generated authority, but
-  operating-system isolation and capability enforcement belong to the host.
-- **A tutorial is not semantics.** Examples and tutorials aid acquisition; the pack
-  and owning contracts define meaning.
-- **A roadmap item is not an implemented capability.** Capability claims require
-  current implementation evidence.
+## Modes and outcomes
 
-When uncertain which document owns a term or claim, start from the
-[architecture source-of-truth map](architecture/ARCHITECTURE.md#source-of-truth-map)
-rather than choosing whichever definition was read most recently.
+**`DIRECT`** uses the native language/tooling without synthesizing a capsule.
+**`CAPSULE`** solves through a frozen task-adapted interface over supported
+semantics. **`DESIGN_ONLY`** records a technically meaningful design when required
+semantics, capability, or authority is unavailable for honest execution.
+
+Compatible terminal outcomes are `ACCEPTED_UNDER_POLICY`, `REJECTED`,
+`BUDGET_EXHAUSTED`, and `DESIGN_ONLY`; see [PROTOCOL](../core/PROTOCOL.md).
+
+Keep these distinctions sharp: identity is not correctness; typechecked is not
+task-correct; executed is not accepted; finite tests are not proof; a capsule is
+not a sandbox; a tutorial is not semantics; a roadmap item is not an implemented
+capability.
