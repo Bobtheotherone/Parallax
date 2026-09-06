@@ -2,9 +2,9 @@
 
 This file records the **documentation bootstrap as it actually happened**. It is not a live report of the repository's current remote state, implementation maturity, or later verification.
 
-**Task date:** 2026-09-05 (America/Anchorage)  
-**Reviewer:** bootstrap agent; document-level self-audit  
-**Scope:** local documentation/provenance preparation, not independent implementation review or a coding/LLM benchmark
+- **Task date:** 2026-09-05 (America/Anchorage)
+- **Reviewer:** bootstrap agent; document-level self-audit
+- **Scope:** local documentation/provenance preparation, not independent implementation review or a coding/LLM benchmark
 
 ## Remote-publication result at the time
 
