@@ -1,119 +1,191 @@
-# Capsule synthesis algorithm
+# AI-native task-language synthesis algorithm
 
-A synthesizer chooses the interface that gives a solver the highest chance of a
-strong solution under the real budget. It is not a language-design persona. The
-best answer may be `DIRECT`, an existing library/API, a restricted view of a pack,
-or a capsule with a small number of compositional macros.
+The synthesizer's job on `experimental` is to create a **new programming language or
+IR for the current substantial engineering task**. It does not decide whether a new
+language is worthwhile; that question is intentionally fixed by the experiment.
 
-Inputs are the frozen task contract, selected semantic pack, actual host
-capabilities, target environment, budget, and any trustworthy model/profile data.
-Task semantics, primitive meanings, host permissions, and final acceptance remain
-outside the synthesizer's authority.
+Inputs: frozen task, repository/target architecture, available trusted semantics and
+libraries, host capabilities, budget, and any reliable model/tool observations.
+Outputs: a frozen task-language definition `L_T`, its lowering contract, compact
+acquisition examples if needed, and an identity/revision for program generation.
 
-## 1. Compress the engineering problem
+Task semantics, host permissions, and final acceptance remain outside the generated
+language's authority.
 
-Before inventing syntax, identify the decisions that determine solution quality:
+## 1. Extract the decision surface
 
-- externally visible behavior, edge cases, errors, effects, numerical policy, and
-  compatibility constraints;
-- data shape and scale, state/ownership/concurrency boundaries, resource limits,
-  and performance bottlenecks when they matter;
-- plausible implementation families and the algorithmic choices separating them;
-- available libraries, primitives, backends, and tools that already discharge
-  difficult obligations;
-- likely solver failure modes: irrelevant API surface, missing structure, awkward
-  composition, hidden invariants, unfamiliar syntax, or an actually unsupported
-  capability.
+Do not begin with syntax. Build a compact model of the decisions that determine
+correctness or engineering quality:
 
-The capsule should expose the **decision frontier** the solver must reason about
-and hide only machinery whose meaning is already fixed and checkable. Do not hide
-an unresolved algorithmic choice merely to make the final program shorter.
+- externally observable behavior and edge cases;
+- important data shapes, values, provenance, ordering, and invariants;
+- state transitions, ownership, effects, concurrency, and lifetime constraints;
+- algorithm families and complexity boundaries;
+- numerical rules and reduction/association behavior;
+- memory/layout/I/O/serialization/schedule decisions when relevant;
+- available host libraries/APIs/backends and their actual constraints;
+- likely model failure modes in the ordinary host-language representation.
 
-## 2. Choose whether adaptation is worth buying
+The task language should make this decision surface explicit while removing
+irrelevant general-purpose language choices.
 
-Compare four routes in this order: direct/native code, a strong existing API or
-DSL, a restricted supported interface, and new compositional macros. Prefer the
-simplest route that keeps competitive solutions easy to express.
+## 2. Choose a machine state model
 
-Adaptation is justified when it removes high-cost irrelevant choices, packages a
-reusable invariant, makes an important composition explicit, or turns common
-structural mistakes into checker failures. It is weak when it mainly renames
-operations, duplicates a familiar library, forces the model to learn gratuitous
-syntax, or moves the entire solution into a one-off macro.
+Define what the model manipulates. Examples:
 
-A whole-algorithm macro can still be useful, but count its design and validation as
-algorithm synthesis. Do not attribute that work to a trivial downstream program.
+- immutable typed values with SSA identifiers;
+- graph nodes and typed edges;
+- stack/register slots;
+- shape-annotated tensors/buffers;
+- protocol states and transitions;
+- constraints and finite holes;
+- transformations over repository modules/interfaces;
+- schedule/resource objects separated from semantic operations.
 
-## 3. Design the smallest sufficient interface
+Choose the state model that makes dependencies and illegal combinations easiest for
+the LLM to represent consistently. Human familiarity is not a criterion.
 
-Select a primitive basis that supports the important implementation families, not
-just the first solution you imagined. Remove operations only when the restriction
-reduces confusion or excludes behavior the task truly does not need.
+## 3. Synthesize the instruction basis
 
-Add a macro only when all of the following are true:
+Invent a compact operator set adapted to the task.
 
-1. its meaning is a mechanical composition of already admitted semantics;
-2. it captures repeated or error-prone structure rather than a new trusted fact;
-3. the checker can validate its signature, scope, expansion, and resource bounds;
-4. it leaves the solver with meaningful algorithmic decisions; and
-5. its construction cost is lower than the search or error cost it is expected to
-   remove, under the intended reuse horizon.
+Each instruction should have:
 
-Keep names and serialization familiar unless syntax itself is the experiment.
-For larger domains, prefer semantic operations over hardware accidents: expose a
-row reduction, ownership transfer, transaction, or protocol transition when that
-is the real meaning; let a backend own warp layouts, register placement, syscalls,
-or transport details unless the task explicitly optimizes them.
+```text
+opcode
+operands / references
+result(s)
+type/shape/state/effect/resource contract
+preconditions
+semantic intent
+lowering rule
+failure/diagnostic class
+```
 
-## 4. Teach by contrast, not by leaking the answer
+Prefer orthogonal operators and canonical operand order. Combine operations when a
+fused instruction captures a meaningful recurring decision or removes a common model
+failure. Split operations when fusion hides a decision the task actually requires.
 
-Supply only the semantics and examples needed to acquire the interface. Favor
-small contrastive examples that distinguish important cases: ordering, aliasing,
-empty inputs, numerical boundaries, resource rejection, legal versus illegal
-composition, or two well-typed programs with different task behavior.
+Virtual instructions may be novel and task-specific. Their executable authority
+comes from lowering into supported code/semantics, not from their name.
 
-Examples are diagnostics for model understanding, not substitute semantics. Avoid
-examples that encode the full held-out solution when the evaluation claims the
-solver must discover that structure.
+Do not simply rename the host language. At least one meaningful dimension—operator
+basis, state/value model, type/shape/effect system, dataflow/control representation,
+constraint model, or schedule/resource model—should be genuinely adapted to the
+task.
 
-## 5. Use tools to answer design questions
+## 4. Minimize representational entropy
 
-Tool use should discriminate between competing designs. Useful probes include:
+Design for model generation rather than human style diversity.
 
-- ask the real checker whether candidate capsules and boundary cases are admitted;
-- enumerate signatures/dependencies to find the true minimal sufficient basis;
-- run tiny counterexamples that distinguish order, scope, numerical, or resource
-  interpretations;
-- compare direct and capsule solutions on representative tasks when the adaptation
-  cost is uncertain;
-- profile or benchmark only when performance is part of the decision, and measure
-  the actual bottleneck rather than proxying it with operation count.
+Prefer:
 
-Do not run tools merely to complete a ritual. Never report a checker, benchmark,
-or execution result that did not occur.
+- exactly one canonical serialization;
+- short stable opcodes/tags;
+- fixed field order;
+- explicit references instead of implicit name resolution;
+- no aliases for the same operation;
+- no optional punctuation/sugar unless empirically useful;
+- explicit types/shapes/states where inference would create ambiguity;
+- bounded local scopes;
+- normalized branching/loop/dataflow forms;
+- deterministic numeric/string literal rules;
+- minimal nesting depth compatible with the task.
 
-## 6. Diagnose the failure before revising the representation
+A language can be ugly to a human and excellent for an agent.
 
-| Observation | Likely owner | High-information next move |
+## 5. Encode invariants structurally
+
+Move important task facts into the language when this can reject or distinguish
+wrong constructions **without embedding the final task oracle**.
+
+Examples:
+
+- distinguish original-data references from transformed-data references;
+- separate semantic reduction scope from backend schedule;
+- represent ownership transfer as state transitions;
+- make buffer shape/layout operands explicit;
+- encode protocol transitions with legal predecessor states;
+- separate pure values from effectful operations;
+- make resource/synchronization dependencies explicit.
+
+Do not turn arbitrary task correctness into the type system. A well-typed wrong
+algorithm must remain possible when the task distinction is genuinely semantic.
+
+## 6. Define deterministic lowering
+
+For every executable construct, specify its translation into real supported
+machinery:
+
+```text
+L_T instruction
+   -> stable semantic operation(s)
+   -> library/API call(s)
+   -> host AST/source transformation
+   -> backend schedule/configuration
+```
+
+Lowering must state any ordering, evaluation, numerical, state/effect, resource, or
+error behavior that affects observable results.
+
+If a desired instruction cannot be implemented with available meaning/capability,
+mark it unsupported or create a separate explicit implementation requirement. Do not
+pretend syntax created the backend.
+
+## 7. Build language diagnostics
+
+Diagnostics should be cheap for another model to consume. Prefer compact structured
+errors that identify:
+
+- language revision;
+- offending instruction/node;
+- operand/reference;
+- expected versus observed type/shape/state/effect/resource rule;
+- failure layer (`PARSE`, `TYPE`, `STATE`, `RESOURCE`, `LOWER`, `CAPABILITY`).
+
+Avoid long explanatory prose in machine feedback unless it adds information.
+
+## 8. Teach by contrast
+
+If the language is non-obvious, provide a very small number of high-information
+examples/counterexamples. Use them to teach:
+
+- legal syntax/composition;
+- subtle dependency/order distinctions;
+- state/type/resource failures;
+- one case where two structurally legal programs have different task behavior.
+
+Do not provide a complete held-out solution as the tutorial.
+
+## 9. Freeze the language
+
+Before program generation, freeze:
+
+- grammar/canonical encoding;
+- operator set and signatures;
+- type/shape/state/effect/resource rules;
+- lowering mapping;
+- diagnostics contract;
+- language identity/revision.
+
+A material change creates `L_T+1` and a new program-generation episode.
+
+## 10. Diagnose treatment failures
+
+| Observation | Likely cause | Next experiment |
 |---|---|---|
-| Many syntax/type failures | interface acquisition or excessive surface | simplify names/examples or restrict irrelevant operations |
-| Well-typed but wrong algorithms | solver reasoning | return a discriminating task counterexample; do not change semantics |
-| Same structural mistake across solutions | missing reusable abstraction | consider a transparent macro or stronger existing API |
-| Competitive algorithm cannot be expressed | representation sufficiency | demonstrate the missing composition before proposing extension |
-| Runtime/resource failure | implementation or resource model | profile the real limit; do not infer semantic impossibility |
-| Missing primitive/backend | trusted capability boundary | use [EXTENSION](../templates/EXTENSION.md) or choose another supported route |
-| Capsule adds cost without reducing failures | adaptation economics | fall back to direct/library mode |
-
-Revise between frozen episodes. A failed search is not proof of unexpressibility.
-A new primitive or backend is a separately reviewed system change, never a clever
-capsule field.
+| Many parse failures | encoding too ambiguous/complex | canonicalize/reduce syntax |
+| Many type/state failures | acquisition problem or overconstraint | inspect smallest failing program; simplify rule or example |
+| Valid programs repeatedly encode same wrong dependency | state/value model hides important distinction | expose that dependency structurally |
+| Strong algorithm cannot be expressed | instruction basis insufficient | demonstrate missing composition and add a lowerable virtual instruction |
+| Lowering repeatedly miscompiles valid programs | lowering contract too complex/ambiguous | simplify IR or make semantics more local |
+| Host backend rejects instruction | real capability gap | implement/version capability or redesign instruction lowering |
+| Language works but costs too much | treatment economics | record the loss; do not silently switch to direct mode |
 
 ## Handoff to the programmer
 
-Freeze the admitted capsule before program generation. Provide only the frozen
-task, capsule identity, selected operation signatures/semantics, resource-relevant
-rules, and the smallest useful examples/counterexamples. State the remaining
-algorithmic decisions explicitly so the downstream solver knows what it still owns.
+Provide the frozen task, frozen `L_T`, language identity, instruction signatures,
+lowering-relevant semantics, resource rules, and the smallest useful contrastive
+examples. Do not hand over a completed host-language solution.
 
-If no executable supported route exists, return a precise `DESIGN_ONLY` result or
-extension proposal. Do not impersonate a checker or manufacture host capability.
+The programmer must discover and express the algorithm in the generated language.
