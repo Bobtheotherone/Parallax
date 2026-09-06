@@ -1,25 +1,48 @@
 # Changelog
 
-## 2026-09-05 — Documentation bootstrap (local preparation)
+This file records repository history, not roadmap intent or validation claims.
+Historical failures remain historical even when later work resolves them.
 
-Adopted Parallax branding while preserving legacy wire identifiers and frozen
-intseq source identities. Reworked the human/agent entry points and task routes.
-Added project intent, architecture, three ADRs, development/evidence guides, a
-benchmark protocol separating coding pilots from representation experiments, and
-SPEC-001 in ready-for-dev state. Preserved the source archive and mapped all 36
-Markdown inputs. Added documentation-integrity checks and a source-pinned BMAD
-methodology note.
+## 2026-09-05 — Parallax repository bootstrap and publication
 
-No Parallax runtime or host implementation was added. No intseq tests, LLM trials,
-GPU/native executions, performance comparisons, or formal proofs ran in this
-bootstrap. GitHub content writes were rejected by the integration; this local
-preparation is not a claim of remote publication. See the
-[bootstrap audit](docs/provenance/BOOTSTRAP-AUDIT.md).
+The initial Parallax repository was established and the adaptive-representations
+source corpus was migrated into a routed research/engineering layout. The bootstrap:
+
+- preserved the source archive, stable `intseq/0.1` meaning, legacy
+  `arl-capsule/0.1` / `arl-program/0.1` wire identifiers, canonical example
+  identities, and the embedded Python reference source;
+- added project intent, architecture and ADRs, development/verification guidance,
+  a benchmark protocol, provenance mapping, documentation-integrity tooling, and
+  the implementation-ready `SPEC-001` extraction contract;
+- separated repository-development work from representation-synthesis experiments
+  and kept task acceptance distinct from artifact checking/execution.
+
+The bootstrap itself did **not** add a packaged runtime, orchestration host,
+native/GPU backend, held-out benchmark, LLM comparison, performance result, or
+formal proof. The source-author intseq run report remained imported historical
+evidence rather than a fresh reproduction.
+
+During the earlier local preparation recorded in
+[BOOTSTRAP-AUDIT.md](docs/provenance/BOOTSTRAP-AUDIT.md), GitHub integration writes
+returned 403 and no remote branch existed. That is a preserved fact about that
+attempt, not the final repository state. The prepared bootstrap was subsequently
+published and merged as PR #1 at commit
+`ac221712d46a13162c420f6d393f15a832960e09`.
+
+Later on the same local date, contributor, security, and terminology guides were
+added and merged as PR #2 at commit
+`00c3821b4b812a7e61e24968053059c7adabea30`. Those guides were derived project
+documentation and did not change the frozen semantic/provenance artifacts.
 
 ## Source history — 0.1, dated 2026-09-05
 
-The archive's release note records its initial Markdown starter: contract/capsule/
-evidence separation, bounded agent protocol, selective routes, exact-integer
-reference and example, GPU reduction-scope critique, and matched-budget research
-plan. This is imported history, not a new Parallax release. The original note is
-retained in the [source archive](docs/provenance/adaptive-representations-source.zip).
+The preserved source archive's 0.1 release note describes the original Markdown
+starter: task/contract/capsule/evidence separation, a bounded agent protocol,
+selective context routes, the exact-integer intseq reference/example, a GPU
+reduction-scope design critique, and a matched-budget research plan.
+
+That note is imported source history, not a later Parallax release. The original
+bytes remain in
+[adaptive-representations-source.zip](docs/provenance/adaptive-representations-source.zip),
+with migration identities and dispositions in
+[SOURCE-MAP.md](docs/provenance/SOURCE-MAP.md).
