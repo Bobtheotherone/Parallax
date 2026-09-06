@@ -137,13 +137,24 @@ The program is data. It may not add permissions, primitives, source code, a new
 backend, or an oracle. If an operation is absent, report that fact rather than
 naming an imaginary one.
 
-## Source bindings
+## Stable semantic bindings
 
-These are whole-file SHA-256 bindings for the packet's five source dependencies,
-not canonical JSON hashes. They allow a host to detect stale derived context.
+This packet is derived context, so its exact prose version is identified by Git
+rather than by recursively hashing other Markdown wrappers. Whole-file source hashes
+remain preserved as bootstrap provenance in `docs/provenance/SOURCE-MAP.md`; they
+are not live compatibility pins after those wrappers legitimately evolve.
 
-- `examples/intseq/TASK.md`: `f08bce72ad70d544409917c41af5b07dcb9a15c84731b733f32b40464a9b4f50`
-- `examples/intseq/CAPSULE.md`: `344028890a820dc74b7c4b9d82180d39111fb39db95b4e9720ca419e454268f2`
-- `packs/intseq/PACK.md`: `1d3de58d8bbdb9334f2fee2d40135aada79e26b35decc9cbe146e0c099ff717b`
-- `packs/intseq/CAPSULE.md`: `f38fcb922a05528d1dc8db48127a6bb5eef4a5555420bf2f35f5886ef5a30029`
-- `roles/PROGRAMMER.md`: `6d13cda30c80161317b29ed7f450c8367b49072d8cd1de2839e2ecbd3f9736a9`
+The packet instead binds the facts that can change executable meaning:
+
+- `task_id`: `nonnegative-affine-sum`
+- `contract_version`: `0.1`
+- `pack`: `intseq/0.1`
+- `capsule_protocol`: `arl-capsule/0.1`
+- `program_protocol`: `arl-program/0.1`
+- `capsule_canonical_json_sha256`: `2a340d75023574cd3b55590dfe5583700984ded258b1257f316dd7b6490e2ee9`
+- `reference_python_fence_sha256`: `4025a0043e958785196e35d6530ec4570dcedd36cf621b555249a1809649dc91`
+
+The documentation checker recomputes the embedded capsule's canonical identity and
+compares these bindings with the current task, canonical example, and preserved
+reference source. A semantic mismatch makes the packet stale; a prose improvement
+does not.
