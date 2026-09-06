@@ -204,7 +204,7 @@ not be misdescribed as byte-preserved migration.
 ## How to use this map
 
 For an implementation question, use the current authoritative document/code, not
-this history. Use this map when you need to answer one of three questions:
+this history. Use this map when you need to answer one of four questions:
 
 1. **What did the historical source corpus claim to contain?** → use
    `source-inventory.json`, recovered `MANIFEST.md`, and the recovery status above.
