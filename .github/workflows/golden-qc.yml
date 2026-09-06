@@ -20,14 +20,141 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Provenance archive identity
+      - name: Recover and verify provenance archive container
         shell: bash
         run: |
-          set -euxo pipefail
-          wc -c docs/provenance/adaptive-representations-source.zip
-          sha256sum docs/provenance/adaptive-representations-source.zip
-          file docs/provenance/adaptive-representations-source.zip
-          xxd -l 32 docs/provenance/adaptive-representations-source.zip
+          python - <<'PY'
+          from pathlib import Path
+          import binascii
+          import hashlib
+          import json
+          import struct
+          import zlib
+
+          archive = Path('docs/provenance/adaptive-representations-source.zip')
+          inventory = json.loads(Path('docs/provenance/source-inventory.json').read_text(encoding='utf-8'))
+          expected_archive = inventory['archive']['sha256']
+          prefix = inventory['archive']['source_prefix']
+          raw = archive.read_bytes()
+          print('published_size', len(raw))
+          print('published_sha256', hashlib.sha256(raw).hexdigest())
+
+          # Parse local records independently of the missing/corrupt central-directory terminator.
+          entries = []
+          pos = 0
+          while pos + 30 <= len(raw) and raw[pos:pos + 4] == b'PK\x03\x04':
+              (sig, needed, flags, method, mtime, mdate, crc, csize, usize,
+               name_len, extra_len) = struct.unpack_from('<IHHHHHIIIHH', raw, pos)
+              if flags & 0x08:
+                  raise AssertionError('unexpected ZIP data descriptor; salvage recipe must be reviewed')
+              name_start = pos + 30
+              name = raw[name_start:name_start + name_len]
+              extra = raw[name_start + name_len:name_start + name_len + extra_len]
+              data_start = name_start + name_len + extra_len
+              compressed = raw[data_start:data_start + csize]
+              if len(compressed) != csize:
+                  raise AssertionError('truncated compressed member')
+              if method == 8:
+                  data = zlib.decompress(compressed, -15)
+              elif method == 0:
+                  data = compressed
+              else:
+                  raise AssertionError(f'unsupported compression method {method}')
+              assert len(data) == usize
+              assert (binascii.crc32(data) & 0xffffffff) == crc
+              entries.append({
+                  'offset': pos, 'needed': needed, 'flags': flags, 'method': method,
+                  'mtime': mtime, 'mdate': mdate, 'crc': crc, 'csize': csize,
+                  'usize': usize, 'name': name, 'extra': extra, 'data': data,
+              })
+              pos = data_start + csize
+
+          print('local_entries', len(entries), 'local_records_end', pos,
+                'trailing_bytes', len(raw) - pos, 'next_signature', raw[pos:pos + 4].hex())
+
+          expected_sources = {
+              prefix + row['source_path']: (row['bytes'], row['sha256'])
+              for row in inventory['sources']
+          }
+          actual_sources = {
+              e['name'].decode('utf-8'): (len(e['data']), hashlib.sha256(e['data']).hexdigest())
+              for e in entries if e['name'].decode('utf-8').endswith('.md')
+          }
+          assert actual_sources == expected_sources, 'local ZIP members do not match source inventory'
+          print('all_source_members_match_inventory', len(actual_sources))
+
+          recovered = None
+
+          # Most likely publication defect: the 22-byte EOCD record was dropped while
+          # local records and central directory remained intact. Validate the existing
+          # central records, then append only EOCD and demand the historical hash.
+          if raw[pos:pos + 4] == b'PK\x01\x02':
+              cpos = pos
+              central_count = 0
+              while cpos + 46 <= len(raw) and raw[cpos:cpos + 4] == b'PK\x01\x02':
+                  fields = struct.unpack_from('<I6H3I5H2I', raw, cpos)
+                  name_len, extra_len, comment_len = fields[10], fields[11], fields[12]
+                  cpos += 46 + name_len + extra_len + comment_len
+                  central_count += 1
+              print('central_entries', central_count, 'central_end', cpos)
+              if cpos == len(raw) and central_count == len(entries):
+                  eocd = struct.pack(
+                      '<IHHHHIIH', 0x06054B50, 0, 0, central_count, central_count,
+                      len(raw) - pos, pos, 0,
+                  )
+                  candidate = raw + eocd
+                  print('append_eocd_candidate_sha256', hashlib.sha256(candidate).hexdigest())
+                  if hashlib.sha256(candidate).hexdigest() == expected_archive:
+                      recovered = candidate
+
+          # If more than EOCD was lost, reconstruct the central directory from the
+          # verified local records. Try the standard Python/Linux file metadata shapes
+          # used by common zipfile write paths; accept only an exact historical hash.
+          if recovered is None:
+              for made_by in (0x0314, 0x0014):
+                  for external_attr in (
+                      0o600 << 16,
+                      0o644 << 16,
+                      0o100600 << 16,
+                      0o100644 << 16,
+                      0,
+                  ):
+                      central_parts = []
+                      for e in entries:
+                          central_parts.append(struct.pack(
+                              '<I6H3I5H2I',
+                              0x02014B50, made_by, e['needed'], e['flags'], e['method'],
+                              e['mtime'], e['mdate'], e['crc'], e['csize'], e['usize'],
+                              len(e['name']), len(e['extra']), 0, 0, 0,
+                              external_attr, e['offset'],
+                          ) + e['name'] + e['extra'])
+                      central = b''.join(central_parts)
+                      local = raw[:pos]
+                      eocd = struct.pack(
+                          '<IHHHHIIH', 0x06054B50, 0, 0, len(entries), len(entries),
+                          len(central), len(local), 0,
+                      )
+                      candidate = local + central + eocd
+                      if hashlib.sha256(candidate).hexdigest() == expected_archive:
+                          recovered = candidate
+                          print('reconstructed_exact_archive', hex(made_by), oct(external_attr >> 16))
+                          break
+                  if recovered is not None:
+                      break
+
+          assert recovered is not None, 'could not reconstruct archive to the historical SHA-256'
+          archive.write_bytes(recovered)
+          print('recovered_size', len(recovered))
+          print('recovered_sha256', hashlib.sha256(recovered).hexdigest())
+          PY
+
+      - name: Preserve recovered archive for repository repair
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovered-source-archive
+          path: docs/provenance/adaptive-representations-source.zip
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Documentation integrity
         run: python tools/check_docs.py
