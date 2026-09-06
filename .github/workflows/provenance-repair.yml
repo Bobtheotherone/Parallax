@@ -1,0 +1,61 @@
+name: Commit validated provenance recovery
+
+on:
+  push:
+    branches:
+      - integration/golden-unified-qc
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  commit-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download already validated recovery artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 34011087168 -n recovered-source-archive -D /tmp/recovery
+
+      - name: Verify and install exact recovery state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import zipfile
+
+          root = Path('/tmp/recovery')
+          archive = root / 'adaptive-representations-source.zip'
+          inventory = root / 'source-inventory.json'
+          expected = 'f1f443cc5e574b0b87bb4c45fe1e9d0a54613ed877cf635297e887e9db011398'
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected
+          assert zipfile.is_zipfile(archive)
+          data = json.loads(inventory.read_text(encoding='utf-8'))
+          assert data['archive']['sha256'] == expected
+          assert data['archive']['status'] == 'partial-recovery'
+          assert data['archive']['recovered_source_count'] == 27
+          assert len(data['archive']['unrecoverable_sources']) == 9
+          PY
+          cp /tmp/recovery/adaptive-representations-source.zip docs/provenance/adaptive-representations-source.zip
+          cp /tmp/recovery/source-inventory.json docs/provenance/source-inventory.json
+          git diff --check
+
+      - name: Commit recovery if branch does not yet contain it
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/provenance/adaptive-representations-source.zip docs/provenance/source-inventory.json; then
+            echo 'Validated recovery state is already committed.'
+            exit 0
+          fi
+          git config user.name 'Parallax QC'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/provenance/adaptive-representations-source.zip docs/provenance/source-inventory.json
+          git commit -m 'Repair published provenance archive honestly'
+          git push origin HEAD:integration/golden-unified-qc
