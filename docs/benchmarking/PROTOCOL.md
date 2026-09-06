@@ -1,181 +1,212 @@
-# Benchmark protocol
+# Benchmark protocol: engineering capability under matched budgets
 
-**Consumer:** experiment operator and evidence reviewer. **Status:** proposed
-protocol; no LLM trial or comparative benchmark has run in this bootstrap.
-A run becomes an experiment only after its choices, budget, acceptance mechanism,
-and stopping rules are fixed and its actual evidence is retained.
+**Status:** proposed protocol. No LLM development comparison or adaptive-representation benchmark was executed during the 2026-09-05 bootstrap. The imported intseq run report is reference-runtime evidence, not a model benchmark.
 
-## Two questions, two tracks
+The benchmark exists to answer engineering questions, not to validate that a workflow was followed. A run is informative when it fixes the thing being compared, measures the property that matters, and makes alternative explanations hard to confuse with the claimed effect.
 
-**Track A — developing Parallax.** How well does a specified coding LLM/agent
-implement a bounded repository specification? Start with
-[SPEC-001](../specs/001-intseq-reference.md), a public reference-extraction and
-conformance task. The source solution and public tests are disclosed. This is
-not an unseen algorithm-synthesis task or a test of adaptive representations.
-It may be used immediately as an observational development pilot, provided the
-report says which checks/review were actually obtained.
+## Two tracks with different claims
 
-**Track B — using Parallax.** At matched total inference/tool/compute budget and
-required evidence policy, does an adaptive representation improve acceptable-
-solution rate on held-out tasks? Separately, does it reduce cost/time to a target
-rate, or improve performance of accepted implementations on a real target?
-This requires a working host and an executed experiment; the reference test report
-cannot answer it.
+### Track A — engineering-agent capability
 
-Do not pool Track A and Track B outcomes. A successful extraction is infrastructure
-evidence, not evidence that adaptation helps.
+Question: **How effectively does a specified coding agent solve a bounded repository task?**
 
-## Freeze before any scored trial
+A useful Track A task can require repository comprehension, architecture, implementation, debugging, performance reasoning, compatibility work, or integration across modules. The public [SPEC-001](../specs/001-intseq-reference.md) is an initial development pilot: it exposes its reference and public cases, so it can characterize engineering behavior but cannot establish unseen-task generalization.
 
-Record run ID, track, hypothesis, task/spec revision and starting repository commit,
-task distribution and exclusions, experimental arms, models/provider versions,
-decoding settings, tools and versions, prompt/context assembly, seed policy,
-repetitions, total budgets, acceptance policy/oracle identity and custody, metrics,
-analysis, stopping rules, and retry/infrastructure-failure policy. Record unavailable
-provider fields as unavailable rather than estimating them as measured usage.
+Track A should distinguish:
 
-For Track A, freeze the same source-only base and public spec for every compared
-agent. Each gets an isolated clean checkout and the same available tools, docs,
-public fixtures, and scope. Do not expose another arm's implementation or reviews.
-A reviewer/evaluator assesses the resulting diff against frozen criteria; an
-agent's `done` marker is not the evaluator's verdict. Record human interventions.
-Do not score absence of a hidden suite as if a hidden suite passed.
+- **first-serious-candidate quality:** the candidate after the agent's own repository inspection, reasoning, implementation, and public tool use, but before feedback from a final evaluator;
+- **final quality within budget:** the best candidate reached after permitted diagnostics/repairs;
+- **engineering quality:** task-specific properties such as algorithmic complexity, architecture, compatibility, resource behavior, target performance, or maintainability after correctness gates.
 
-A pilot can report “passes public checks; independent review pending.” A comparative
-or confirmatory conclusion requires the preregistered acceptance policy to be met.
-No dataset, isolated harness, or final evaluator is supplied by this bootstrap.
+This rewards agents that use tools intelligently before submission rather than agents that simply consume many evaluator-driven retries.
 
-## Arms and strong baselines for Track B
+### Track B — representation efficacy
 
-Compare direct native generation, native generation with a good typed library,
-a fixed domain DSL, a restricted fixed DSL without new macros, and adaptive
-capsules. Include fixed-DSL grammar/type-constrained decoding where available.
-Document omissions or unsupported arms before seeing outcomes. Allow each baseline
-to spend its total budget competitively, including repair and public feedback;
-do not compare one direct shot with an unlimited adaptive search team.
+Question: **For the same model, task distribution, tools, acceptance policy, and total budget, does changing the model-facing representation improve the probability or quality of an acceptable solution?**
 
-Keep tools, oracle access, examples, task definitions, and total resources comparable.
-Any capability difference is either a declared treatment or a confound to remove.
-A useful library is a real competitor, not something to withhold from the baseline.
+The principal quantity is not syntax validity or token count. It is an acceptance/cost curve such as:
 
-Required interpretive ablations when attributing gains to representation:
-keep macro/algorithm inventory identical while varying selection/serialization;
-keep syntax fixed while varying selected operations; and compare contract/test
-scaffolding without a new language. These distinguish useful abstraction,
-constraints, extra compute, and actual adaptive representation. Count whole-task
-macros as algorithm synthesis rather than free intelligence for the programmer.
+```text
+P(task accepted with required quality | total budget <= b)
+```
 
-## Development, validation, final evaluation
+and, when the task includes an optimization objective, target quality of **accepted** solutions as a function of full search cost.
 
-Split by task family or structural template, not merely random instances of the
-same template. Separate capsule/profile development, validation/model selection,
-and final held-out families. Freeze reusable packs and oracle implementations
-before final evaluation. A new task-specific primitive during final testing is
-additional development and belongs in a separately declared regime.
+Do not pool Track A and Track B. A good repository implementation demonstrates agent capability; it does not show that an adaptive capsule caused the improvement.
 
-Track A's first public task is development material. Future confirmatory coding
-benchmarks need new independently specified task families and private acceptance
-cases; repeated attempts on SPEC-001 do not become independent unseen tasks.
-A hold-out cannot be created simply by renaming a public example or choosing a
-new random seed after studying its structure.
+## Define the experimental unit before the tooling
 
-For a held-out claim, keep final acceptance code and inputs outside the read/write
-capabilities of capsule and program synthesizers (or coding candidates in Track A).
-An environment that cannot enforce this must report the limitation and cannot
-claim protected hold-out evaluation. Public semantic specifications remain allowed;
-record exactly what was exposed. Do not feed final failures back into repair and
-continue calling the same evaluation final.
+The unit should normally be a **task family instance** with a frozen contract, repository/environment state, acceptance mechanism, and budget. Freeze only information that affects the claim:
 
-Track tutorial solutions, cached capsules/programs, source archive exposure,
-prior attempts, model-training contamination where known, and provenance across
-splits. Unknown pretraining exposure is a limitation, not evidence of cleanliness.
+- task/spec version and starting source revision;
+- model/provider/decoder configuration that is under experimental control;
+- available tools and target environment;
+- candidate-visible context and examples;
+- acceptance mechanism and final-evaluator access policy;
+- total resource cap and permitted repair feedback;
+- arm/treatment assignment;
+- task-family split and repetition/seed policy;
+- primary metrics and stopping/exclusion rules.
 
-## Budget parity and cost accounting
+Do not preregister incidental prose or force every command into a schema. Record additional detail when it is needed to reproduce a result, explain a confound, or diagnose a failure.
 
-Use the cost decomposition in [ECONOMICS](../../core/ECONOMICS.md). Charge contract
-work, retrieval, capsule search, tutorials, all candidate languages/programs,
-repairs, compilers/solvers, tests/proofs, review agents, and failed attempts.
-Account for both the model designing a macro and the model calling it. Parallel
-work consumes summed inference/compute even when wall time overlaps.
+If a required provider usage field is unavailable, record it as unavailable. Do not turn an estimate into a measured token count.
 
-Record separate dimensions: provider input/output/reasoning/cache usage when
-available, money under recorded pricing, wall time, host compute, tool calls,
-human interventions, and number of attempts. Do not hide tradeoffs in one score.
-Prompt bytes are not provider tokens. Unknown usage prevents a claimed strict
-matched-token comparison unless a declared common cap was enforceably applied.
+## Task-suite design
 
-Report cold engine/pack construction, cold capsule generation, and warm reuse
-separately. One-time engineering cost may be shared across arms but must remain
-visible in cold-start accounting. State the amortization horizon for caching;
-never erase its cost. Count all searched candidates, not just the selected winner.
-The documentation-bootstrap cost is disclosed setup, not runtime performance.
+A benchmark that only measures toy syntax errors will optimize Parallax toward toy syntax errors. Select tasks whose difficulty matches the engineering capability being studied.
 
-Fix total caps before starting. The synthesis protocol's candidate/repair defaults
-are starting policies, not optimized constants. Track A needs its own declared
-episode cap. No arm receives free additional budget because its approach failed.
+Useful dimensions include:
 
-## Metrics and acceptance
+- cross-module data/control flow and legacy interfaces;
+- ambiguous but recoverable local design choices;
+- externally meaningful compatibility constraints;
+- nontrivial algorithms or data structures;
+- state machines, concurrency, ownership, resource lifetime, or failure recovery;
+- performance-sensitive CPU/GPU/I/O/serialization paths;
+- incomplete implementations with interacting defects;
+- tasks where an existing library/API is a strong alternative to a new representation.
 
-Primary: acceptable-result rate per task within the full predeclared budget.
-Hard gates are functional correctness under the chosen policy, permitted effects,
-and required evidence. Lower latency or a weighted score cannot compensate for a
-wrong answer or missing required verification.
+Split by **structural family or template**, not only random instances of one template. Development/validation families may inform representation design; final families used for a generalization claim must be frozen before the final comparison. Repeated attempts on public SPEC-001 do not become new unseen tasks.
 
-Track A also reports acceptance-criterion coverage, regressions, unauthorized
-scope/semantic changes, evidence completeness, reviewer findings, and terminal
-spec state. A partial implementation remains in the denominator and is described
-as partial, not rounded to success.
+Track likely prior exposure: public examples, tutorial solutions, source archives, cached capsules/programs, and prior attempts. Unknown model pretraining exposure is a limitation, not evidence of contamination-free evaluation.
 
-Secondary: time to acceptable result, usage/cost, wall/host time, failed attempts,
-syntax/type/admission errors, functional errors, resource failures, repair count,
-semantic dependency footprint, and evidence coverage. Distinguish static admission,
-representation preservation, task satisfaction, and backend behavior. Syntax
-success, low token entropy, short programs, or many padded variants are not the
-objective. Diversity claims require a fixed length/equivalence or implementation-
-family definition.
+## Competitive arms
 
-Audit a stronger acceptance set for false acceptance where available: report
-candidates that pass the public policy but fail that audit separately. If the
-stronger audit did not run, the false-acceptance rate is unknown, not zero.
-Native performance must be measured on the actual target only after functional
-acceptance, with environment, warm-up, repetitions, timing method, and distributions.
-No performance inference follows from intseq operation counts.
+Track B should compare against the strongest practical alternatives relevant to the task, not weak strawmen. Candidate arms include:
 
-## Stopping, failures, and analysis
+1. direct native-language generation;
+2. direct generation using a strong existing library or typed API;
+3. a fixed domain interface/DSL;
+4. a restricted fixed interface using the same semantic inventory;
+5. adaptive operation selection;
+6. adaptive compositional macros/capsules.
 
-Stop each run on the first acceptable result, declared budget exhaustion,
-cancellation, or a nonrecoverable/unsafe capability failure, according to the
-frozen policy. Account for all attempts up to stopping. Do not replenish a losing
-arm's budget or extend the trial count until significance appears.
+Not every experiment needs every arm. Choose the minimal set that can answer the hypothesis and declare omissions before outcomes are known.
 
-Retain rejected capsules, unsupported tasks, timeouts, unavailable evidence, and
-infrastructure failures. Include them in denominators or apply symmetric,
-predeclared exclusions. Report raw counts and reasons either way. Task-changing
-clarification creates a new trial/version. Search failure is not proof of bounded
-unexpressibility; insufficient evidence may warrant `UNKNOWN` reasoning or a
-`DESIGN_ONLY`/`BUDGET_EXHAUSTED` workflow result, not invented success.
+Keep task semantics, oracle access, model, tools, and total budget comparable. If an arm receives grammar-constrained decoding, extra retrieval, additional agents, a solver, or privileged implementation access, treat that capability as part of the treatment and account for it.
 
-Predeclare paired task comparisons, uncertainty estimates, and repeated stochastic
-runs. Use a task/family-clustered paired bootstrap when appropriate to the sampling
-design; do not treat retries from one task as independent samples. Report model
-and task heterogeneity, not only pooled averages. No arbitrary fixed sample count
-guarantees adequate power. A one-task pilot yields observations, not a general
-performance ranking.
+A useful existing library is a real baseline. Representation synthesis has not won if it recreates a weaker library at higher cost.
 
-When adaptation loses, distinguish design/instruction overhead, poor syntax
-acquisition, insufficient expressivity, implementation defects, task confusion,
-and resource limits. A higher typecheck rate alone does not establish useful gain.
+## Budget parity and economics
 
-## Reproducible record and promotion
+Use [ECONOMICS](../../core/ECONOMICS.md) as the accounting model. Charge all work causally required to obtain the candidate:
 
-Use [RUN](../../templates/RUN.md), including its benchmark extension. Preserve
-contracts, prompts/context identities, artifacts, tool transcripts, all costs,
-model/environment versions, random policies, raw results, rejected candidates,
-and evaluator identity. Protect secrets/private final inputs in operator-controlled
-storage and record durable identifiers instead of leaking them to candidates.
-Self-reports and self-review are not independently specified ground truth.
+```text
+contract/context work + retrieval + representation design
++ macro/tutorial construction + generation + tools
++ repairs + failed attempts + solver/compiler work
++ verification/review used by the method + target execution
+```
 
-Promote a capsule family only after reproducible gains for its intended domain,
-model, backend, budget, and reuse regime—or a separately declared auditability
-benefit at an accepted cost. Reevaluate after semantic/model/decoder/backend changes.
-The expected direction of an effect is a hypothesis, not a promised product feature.
+Keep dimensions separate where possible: model input/output/reasoning/cache usage, money, wall time, host compute, external tool calls, and human intervention. Parallel work reduces wall time but does not make summed inference/compute free.
+
+Report **cold** construction and **warm** reuse separately. If a pack, macro library, or cached capsule is amortized across tasks, state the reuse horizon and show both the up-front cost and marginal cost.
+
+Compare methods across one or more fixed total budgets rather than granting a losing arm extra retries until it succeeds. Success-vs-budget curves are more informative than a single arbitrary cap when resources permit.
+
+## Acceptance: hard gates first
+
+The final evaluator is conceptually separate from the candidate pipeline, following [ADR-0003](../architecture/decisions/0003-independent-task-acceptance.md).
+
+Hard gates are task-specific. Typical gates include functional behavior, compatibility, prohibited effects, safety constraints, resource limits, and required numerical tolerances. A lower latency, shorter program, elegant architecture, or high weighted score cannot compensate for a wrong result when correctness is a hard requirement.
+
+After hard gates pass, measure the quality dimensions the task actually values. Examples:
+
+- throughput/latency on a recorded target and workload;
+- peak memory or allocation rate;
+- asymptotic complexity under stated input growth;
+- binary/API/protocol compatibility;
+- recovery behavior under injected faults;
+- architecture properties such as required dependency direction or state ownership;
+- code-review findings under a predeclared technical rubric.
+
+Avoid generic style scores as a primary engineering metric. Prefer observable constraints or expert judgments tied to concrete consequences.
+
+### Final-evaluator custody
+
+Public tests, compiler diagnostics, traces, and counterexamples are legitimate development feedback. A final held-out evaluator is different: when claiming hold-out performance, keep its code/inputs outside candidate read/write capability and do not feed its failures back into the same run.
+
+If the environment cannot enforce that separation, report the limitation and make a public-evaluation claim instead. Do not simulate secrecy with a prompt instruction.
+
+## Primary measurements
+
+For each task/arm, record at minimum:
+
+- first-serious-candidate acceptance;
+- final acceptance within budget;
+- total cost/resource usage available from the host;
+- time to acceptable result, if meaningful;
+- terminal failure class when no candidate is accepted.
+
+Use task-specific quality metrics for accepted candidates. Useful secondary diagnostics include syntax/type/admission failure, functional failure, resource rejection, repair count, semantic dependency footprint, and performance distributions.
+
+Do **not** optimize for test count, operation count, raw program count, token entropy, or a generic “verification percentage.” These may diagnose mechanisms but are not the product. Infinitely many padded programs do not imply useful strategy diversity, and a confidently wrong model has low entropy.
+
+When a stronger post-hoc audit exists, report false acceptance: candidates that passed the declared public/primary policy but failed the stronger audit. If no stronger audit ran, the false-acceptance rate is unknown, not zero.
+
+## Attribute gains instead of merely observing them
+
+When Track B shows a difference, use the cheapest ablations that discriminate plausible causes. Important separations include:
+
+- **representation vs extra context:** same contract/examples, different interface;
+- **selection vs new algorithmic content:** same macro/algorithm inventory, vary only exposure/serialization;
+- **syntax vs semantic inventory:** same operations/macros, vary syntax/tutorial;
+- **constraints vs extra inference:** match total model/tool budget;
+- **capsule design vs programmer benefit:** count synthesis work and measure both stages;
+- **reuse vs cold-start engineering:** compare warm and cold accounting.
+
+A whole-task macro may be useful engineering. Attribute the algorithmic work to macro construction rather than claiming that a trivial caller discovered the algorithm.
+
+## Failure analysis should improve the system
+
+A failed run is most useful when localized. Classify the earliest material cause, while retaining secondary contributors when needed:
+
+- task/contract misunderstanding;
+- representation acquisition error;
+- representation too restrictive for the attempted strategy;
+- algorithm/design error despite valid representation;
+- implementation/integration defect;
+- backend/tool capability missing;
+- resource/budget exhaustion;
+- performance design failure;
+- evaluator/infrastructure failure.
+
+Then ask what experiment would distinguish competing explanations. For example, a high typecheck rate with low task acceptance points toward algorithm/task reasoning, not necessarily a need for more type rules. Repeated timeouts with a correct asymptotic design may point to implementation constants or tool overhead rather than representation failure.
+
+Search failure is not proof of unexpressibility. Claim bounded unexpressibility only with a complete finite search or a valid domain argument.
+
+## Statistical analysis
+
+Use paired comparisons when arms solve the same task instances. Treat tasks/families—not retries—as the independent sampling units. Report raw per-task outcomes and heterogeneity before pooled summaries.
+
+For stochastic runs, predeclare repetition and seed/order policy. A task/family-clustered paired bootstrap is a reasonable default for uncertainty intervals when its assumptions match the design; hierarchical models may be useful with multiple task families/models. Do not choose sample size or stopping rules after inspecting significance.
+
+A one-task or small public pilot can discover failure modes and estimate feasibility. It cannot support a general performance ranking.
+
+## Stopping and infrastructure failures
+
+Stop a run on the first result that meets the frozen acceptance/quality target, total budget exhaustion, user/operator cancellation, or a nonrecoverable capability/safety failure. Use symmetric, predeclared handling for infrastructure faults.
+
+Do not erase rejected candidates from cost accounting. Do not replenish budget because an approach was inconvenient. A task-changing clarification starts a new task version rather than improving the old trial retrospectively.
+
+## Minimal reproducibility record
+
+Retain enough to reconstruct the comparison without turning the benchmark into a paperwork system:
+
+- task/spec and source revision;
+- arm/treatment and candidate-visible context identities;
+- model/tool/environment identities that matter;
+- budget and actual available usage;
+- produced artifacts and terminal outcome;
+- acceptance mechanism identity/custody and result;
+- raw measurements needed for reported metrics;
+- declared exclusions, infrastructure faults, and human interventions.
+
+Use [RUN](../../templates/RUN.md) where it is convenient, but the record serves the experiment—not the reverse. Never fabricate missing tool output or historical execution.
+
+## Promotion rule
+
+Promote a representation family only when it demonstrates reproducible value against competitive alternatives for a named domain/model/backend/budget regime: higher acceptable-solution probability, lower cost to a target success level, better quality of accepted solutions, or an explicitly valued auditability property at an accepted cost.
+
+Reevaluate after material model, decoder, semantic-pack, backend, task-distribution, or reuse-regime changes. A negative result is useful evidence. The protocol is designed to discover when direct code or an existing library is the better representation.
