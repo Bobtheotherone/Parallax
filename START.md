@@ -1,39 +1,91 @@
-# Start: choose the kind of work
+# Start here
 
-Read [AGENTS.md](AGENTS.md) once, then select **one** entry below. Do not recursively
-load the repository. Links are routes, not automatic includes.
+Parallax has two distinct engineering loops:
 
-## Implement or review Parallax itself
+`build Parallax` and `solve a task through Parallax`.
 
-The first programming task is [SPEC-001](docs/specs/001-intseq-reference.md).
-Read it in full, including its explicit context list, then the
-[development workflow](docs/development/WORKFLOW.md). Inspect the working tree
-before editing. The spec's frontmatter is the authoritative lifecycle state.
+Do not confuse them. Repository implementation work changes the machinery; a
+capsule/program episode uses pinned machinery to solve an external task.
 
-A `ready-for-dev` spec is a contract to implement, not evidence of implementation.
-Follow its acceptance criteria and record checks actually performed. No model API,
-GPU toolchain, or BMAD installation is needed for SPEC-001.
+## Sixty-second problem compression
 
-Do **not** load the thesis, unrelated packs, or all role documents for this task.
-The `roles/` files describe capsule/program-generation roles, not a mandatory team
-or a software-development framework.
+Before choosing a route, answer five questions:
 
-## Solve a task using a representation
+1. **What observable result is requested?** Identify the task/specification and the
+   acceptance mechanism that owns correctness.
+2. **What must not change?** Capture compatibility, semantics, permissions,
+   numerical behavior, side effects, and performance constraints.
+3. **What already exists?** Inspect the actual repository, libraries, tools,
+   runtimes, examples, and target environment.
+4. **Where is the uncertainty?** Separate semantic uncertainty from implementation,
+   algorithm, integration, resource, or performance uncertainty.
+5. **What experiment would resolve the most important uncertainty?** Prefer a
+   compiler, debugger, reference comparison, focused test, profiler, or small
+   executable probe over speculative process.
 
-Use [ROUTES.md](ROUTES.md), [task contracts](core/CONTRACT.md), and the
-[task template](templates/TASK.md). Establish intent, unresolved semantic questions,
-real tools/backends, required evidence, and a total budget before selecting a mode:
-`DIRECT`, `CAPSULE`, or `DESIGN_ONLY`.
+Proceed autonomously on reversible local choices. Stop for clarification only when
+the unresolved choice can materially change the contract, safety, compatibility,
+irreversible architecture, or requested deliverable.
 
-A supported capsule run follows [the synthesis protocol](core/PROTOCOL.md).
-Freeze task and capsule; do not expose a held-out oracle through a convenience
-context route. An implementation agent may read the public reference and tests;
-a measured solution-generating agent receives only its declared task packet.
-Those are different contexts with different read permissions.
+## Build or change Parallax
 
-## Research, extend, or maintain documentation
+Start from the user's request or the named implementation spec, then inspect the
+touched code and its dependencies. Use
+[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) when the
+change crosses component or trust boundaries and
+[docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) for the repository's
+development conventions.
 
-Select the matching row in [ROUTES.md](ROUTES.md). The
-[authority map](docs/architecture/ARCHITECTURE.md) identifies which document to edit.
-Record only the intent, route, selected spec/contract revision, unresolved issues,
-and available tools needed for this episode—not another project essay.
+The currently prepared implementation slice is
+[SPEC-001](docs/specs/001-intseq-reference.md), which packages the embedded
+`intseq` reference without changing its semantics. It is relevant only when that
+work is actually requested.
+
+Implementation priorities are: understand the contract, choose the right
+architecture/algorithm, make the change, then use the most informative available
+checks. Tests are evidence, not the product.
+
+## Solve a task
+
+Read [core/CONTRACT.md](core/CONTRACT.md) and
+[core/ECONOMICS.md](core/ECONOMICS.md), then choose the cheapest strong route:
+
+- **DIRECT** — ordinary code or an existing library already exposes the right
+  abstractions.
+- **CAPSULE** — a checked task-specific interface materially compresses the search
+  space, exposes useful structure, or prevents realistic classes of mistakes.
+- **DESIGN_ONLY** — the required semantics, backend, permission, or acceptance
+  mechanism is unavailable.
+
+For capsule work, use [core/CAPSULE.md](core/CAPSULE.md),
+[core/PROTOCOL.md](core/PROTOCOL.md), and the selected semantic pack. Freeze the
+task and capsule before program generation. The generated artifact does not own
+machine capabilities or task acceptance.
+
+## Diagnose or review a result
+
+Start from the exact observation, not a generic checklist. Use the failure layer to
+choose context:
+
+- schema/type/operation failures -> capsule/program format and checker;
+- wrong accepted output -> task contract, algorithm, and independent oracle;
+- resource rejection -> runtime policy and algorithm/resource behavior;
+- missing primitive/backend -> supported capabilities and
+  [core/EVOLUTION.md](core/EVOLUTION.md);
+- performance shortfall -> actual target, profiler/measurement, data movement, and
+  algorithm/schedule.
+
+[core/EVIDENCE.md](core/EVIDENCE.md) defines what different checks establish.
+A successful execution is not task acceptance.
+
+## Extend, research, benchmark, or maintain docs
+
+Use [ROUTES.md](ROUTES.md) for the smallest authoritative context. New primitives
+or backends require explicit semantics, implementation, resource policy, and
+versioning; research hypotheses do not grant those capabilities. Benchmarks belong
+under the matched-budget methodology in
+[docs/benchmarking/PROTOCOL.md](docs/benchmarking/PROTOCOL.md).
+
+For a broad architectural redesign, it is legitimate to read the whole system.
+For ordinary work, context should be selected because it changes a decision, not
+because a link exists.
