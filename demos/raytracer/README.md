@@ -1,13 +1,15 @@
-# Prism Studio · CPU Raytracer
+# Prism Studio · CPU + Live GPU Raytracer
 
-A small, original Python renderer: polished chrome, refractive glass, warm diffuse
-ceramic, and a triangle-built teal sculpture share a checkerboard studio. Two
+A small, original renderer with two execution paths: a deterministic Python CPU
+reference and a progressive OpenGL-compute GPU viewer. Polished chrome, refractive
+glass, warm diffuse ceramic, and a triangle-built teal sculpture share a checkerboard studio. Two
 rectangular area lights produce direct illumination and soft cast shadows. The
 floor, wall, pedestal, sculpture, and light panels are real triangle geometry.
 There are no downloaded assets, rendering libraries, or scene files to prepare.
 
-**Requires Python 3.11+ and pip.** Pillow is the only runtime dependency and only
-encodes the completed RGB image. Everything that produces the pixels is Python.
+**Requires Python 3.11+ and pip.** The offline CPU path keeps Pillow as its only
+runtime dependency. Live mode is an optional extra using ModernGL and GLFW to run
+the authored ray/BVH/material shader on an OpenGL 4.3+ GPU.
 
 ## Quick Start
 
@@ -25,6 +27,35 @@ Open **`demos/raytracer/render.png`** in any image viewer. The default is 360 ×
 4 samples per pixel, 7 secondary bounces, seed 20260905, and up to four CPU worker
 processes. Progress goes to stderr; the final line gives the output and elapsed
 time. The output is replaced atomically only after a successful render and encode.
+
+## Live GPU mode
+
+For a machine with an RTX 5090, install the optional viewer from the repository root
+with `python -m pip install -e "./demos/raytracer[live]"`, then launch
+`python -m parallax_raytracer.live` (or `parallax-raytracer-live`). The default window
+is 1280 × 720 at full internal resolution. The same Python `showcase()` scene and
+binned SAH BVH are packed into std430 buffers; an authored OpenGL 4.3 compute shader
+performs intersections, BVH traversal, soft-shadow visibility, mirror recursion and
+dielectric Fresnel/refraction on the GPU.
+
+The viewer is **progressive**: while you move, accumulation is reset and the first
+sample uses centered pixel/light sampling for a stable preview. When you stop, each
+frame adds fresh anti-aliasing and area-light samples and the picture visibly cleans
+up. The window title shows FPS, internal render resolution, accumulated samples per
+pixel, and bounce depth.
+
+Controls: **mouse** look, **W/A/S/D** fly, **Space/Ctrl** up/down, **Shift** boost,
+**mouse wheel** field of view, **R** reset the camera, **Tab** release/capture the
+mouse, and **Esc** quit. Useful 5090 settings include
+`--width 1920 --height 1080 --spp-per-frame 2 --no-vsync`; for 4K, start with
+`--width 3840 --height 2160 --render-scale 0.75` and raise the scale if the frame
+rate remains comfortable. `--max-depth`, `--seed`, `--exposure`, `--move-speed`,
+`--mouse-sensitivity`, and `--vsync/--no-vsync` are also available.
+
+This path uses the 5090's general shader cores through OpenGL compute, **not the
+dedicated RT cores**. For this compact BVH scene that still gives genuinely live
+ray tracing without adding an OptiX/Vulkan dependency stack; the CPU renderer remains
+the precision-oriented reference.
 
 ## Rendering controls
 
@@ -62,7 +93,8 @@ guard; the CLI already does this.
 | `bvh` | Binned surface-area-heuristic construction and near-first traversal; stable scene-order ties; separate brute-force comparison path |
 | `materials`, `integrator` | Lambert diffuse, tinted ideal mirror, Snell refraction, Schlick Fresnel, total internal reflection, Beer absorption, lighting and visibility |
 | `scene`, `camera` | Immutable scene snapshots, finite geometry, explicit lights, perspective projection |
-| `render`, `image`, `cli` | Seeded pixel sampling, bounded process tasks, linear sample accumulation, Reinhard + sRGB display conversion, PNG encoding, argument/error adaptation |
+| `gpu_scene`, `live`, `shaders/` | Scene/BVH std430 packing, fly camera/input, OpenGL compute traversal/shading, progressive accumulation and live display |
+| `render`, `image`, `cli` | Seeded CPU pixel sampling, bounded process tasks, linear sample accumulation, Reinhard + sRGB display conversion, PNG encoding, argument/error adaptation |
 
 All normal rays, including shadows and recursive rays, use the BVH. Intersections
 select the nearest distance in `(t_min, t_max]`. Sphere roots avoid the large-distance
@@ -82,7 +114,7 @@ rays use straight-line Fresnel/Beer attenuation, so there are no focused caustic
 Dielectrics must be non-overlapping closed solids surrounded by air: nested media,
 participating volumes, dispersion, and rough microfacet transmission are not modeled.
 The bounce limit intentionally discards untraced specular energy rather than leaking
-background through geometry. There is no mesh loader, denoiser, GPU path, or GUI.
+background through geometry. There is no mesh loader, denoiser, diffuse global illumination, RT-core backend, or editor UI. The live viewer is a fly-through frontend for the built-in showcase rather than a scene authoring tool.
 
 ## Verification
 
@@ -97,7 +129,8 @@ validate a non-default image.
 The focused tests use analytic geometry/optics expectations, inside/outside and
 surface-origin cases, shared triangle edges, scale and slab boundaries, direct-light
 occlusion, depth termination, pixel normalization, subprocess errors, atomic image
-output, and repeated/single-versus-multiple-worker rendering. These are public,
+output, repeated/single-versus-multiple-worker rendering, GPU-buffer layout, shader
+resource interfaces, and live-camera invariants. These are public,
 same-author checks with implementation diversity, not a held-out oracle or proof.
 Visual inspection of the generated showcase remains a separate acceptance step.
 

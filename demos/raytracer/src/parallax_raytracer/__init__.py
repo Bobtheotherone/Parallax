@@ -1,3 +1,3 @@
-"""Small CPU raytracer. Importing this package performs no rendering or I/O."""
+"""Inspectably small CPU raytracer plus an optional live GPU frontend."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
