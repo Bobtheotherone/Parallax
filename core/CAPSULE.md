@@ -1,209 +1,204 @@
-# Representation capsules
+# Experimental task languages and representation capsules
 
-A **capsule** is a task-adapted interface over already trusted semantics. Its job is
-to expose the decisions a solver should make and hide or constrain decisions that
-add search cost without adding useful freedom.
+On this branch, a **capsule is a newly synthesized task-specific programming language
+or IR** used as the model's primary implementation surface for a substantial
+engineering task.
 
-A capsule is not a new source of task truth, machine authority, or backend
-implementation.
+Unlike `main`, the agent does not first ask whether direct/native code is cheaper.
+The experiment intentionally requires language synthesis so its effect can be
+measured. The language may lower to native code, existing libraries, APIs, stable
+semantic packs, or other trusted implementation machinery.
+
+A generated language is not a new source of task truth or machine authority.
 
 ## The abstraction
 
-Let a semantic pack `K` provide stable typed operations and their meaning. A capsule
-`C` chooses a supported surface over `K`; a program `p` is interpreted through that
-surface and lowered to the pack's stable representation:
+Let `T` be the frozen task, `K` the available trusted semantics/implementation
+surface, `L_T` the novel language synthesized specifically for the task, `p_T` a
+program expressed in that language, and `E_T` its checked lowering:
 
 ```text
-task T
-  |
-  +--> choose C over semantic pack K
-          |
-          v
-       program p
-          |
-      E_C |  checked expansion/lowering
-          v
-     primitive/domain IR
-          |
-        D |  pinned interpreter/backend
-          v
-       behavior B
-          |
-      Phi_T|  external task acceptance
-          v
-       accepted?
+frozen task T
+    |
+    v
+synthesize AI-native language L_T
+    |
+    v
+freeze grammar + typing/state/resource model + lowering
+    |
+    v
+generate task program p_T
+    |
+   E_T   checked lowering / translation
+    v
+trusted IR / repository code / library calls
+    |
+    D    compiler/interpreter/backend/runtime
+    v
+behavior B
+    |
+  Phi_T  external task acceptance
+    v
+accepted?
 ```
 
-`E_C` has a **representation-preservation** obligation. `Phi_T(B)` is the separate
-**task-satisfaction** obligation. A correct lowering of the wrong algorithm remains
-a task failure.
+`E_T` has a **representation-preservation** obligation. `Phi_T(B)` is the separate
+**task-satisfaction** obligation. A perfectly valid task-language program can still
+encode the wrong algorithm.
 
-## When a capsule earns its cost
+## Mandatory language properties
 
-Prefer direct code or an existing library when they already provide a strong
-problem-facing interface. Build or adapt a capsule when it materially improves one
-or more of these:
+The synthesized representation must be language-like enough to be a genuine
+experimental treatment. It should define, as appropriate:
 
-- **search compression:** removes irrelevant operations or invalid states;
-- **structural leverage:** exposes the decomposition, data shape, algebra, protocol,
-  schedule, ownership, or other structure the model otherwise has to rediscover;
-- **mechanical invariants:** makes important type/scope/resource constraints
-  checkable before execution;
-- **compositional reuse:** packages recurring, validated reasoning into operations or
-  macros that apply across a task family;
-- **diagnostic quality:** failures localize to meaningful interfaces instead of
-  surfacing as opaque downstream behavior;
-- **target leverage:** separates semantic choices from layout/schedule/backend
-  choices so optimization can focus on real degrees of freedom.
+- a deterministic grammar or canonical structural encoding;
+- an instruction/operator vocabulary adapted to the task;
+- value identity and dataflow/control structure;
+- types, shapes, dimensions, states, effects, ownership, resources, schedules,
+  constraints, or protocol states that matter to the task;
+- legal composition rules;
+- explicit lowering semantics for every executable construct;
+- invalid-state/admission rules;
+- concise diagnostics;
+- a frozen identity/version for the attempt when artifacts depend on it.
 
-Do not invent a representation because it is shorter, novel, or aesthetically
-regular. Count construction, tutorial/context, checking, repair, and maintenance
-against the benefit. A mature library can be the best capsule-like interface
-without any new syntax.
+A prose checklist is not a language. A JSON object containing arbitrary host source
+is not a language. Renaming every Python/Rust/C++ token is not meaningful adaptation.
+A single `solve_everything` macro is not a useful treatment unless the experiment is
+explicitly measuring whole-algorithm library synthesis and charges all of that work.
 
-## Design a capsule from the failure surface
+## AI-first, not human-first
 
-Start from the frozen task and the available semantic pack.
+Optimize `L_T` for the model that will generate and repair programs in it.
+Human source ergonomics are secondary.
 
-1. **Locate hard reasoning.** Identify decisions most likely to dominate
-   correctness, performance, or model error: order of operations, invariants,
-   resource ownership, reduction scope, shape/layout, numerical policy, protocol
-   state, concurrency, error handling, and similar task-specific pressure points.
-2. **Expose the useful degrees of freedom.** Keep choices the solver must reason
-   about. Remove choices whose only effect is accidental complexity.
-3. **Select stable operations.** Prefer familiar, orthogonal primitives with clear
-   preconditions/effects and an implemented meaning.
-4. **Add composition where it compresses repeated reasoning.** A macro should make
-   an important pattern easier to express or harder to misuse, not merely rename a
-   long expression.
-5. **Teach non-obvious semantics cheaply.** A few high-information examples and
-   counterexamples are better than a long tutorial. Include cases that separate
-   plausible but different interpretations.
-6. **Design diagnostics with the interface.** Type, scope, identity, resource, and
-   unsupported-capability errors should point to the owning layer.
-7. **Freeze the admitted surface before program generation.** Program search happens
-   against a stable interface; semantic evolution is a separate event.
+Useful design biases include:
 
-The best representation often looks obvious after this compression. That is a
-feature: the capsule should move complexity into reusable checked machinery only
-when the machinery genuinely knows how to discharge it.
+- one canonical encoding rather than many stylistic spellings;
+- small vocabularies and short stable symbols;
+- fixed field/order conventions;
+- explicit references instead of name-resolution magic;
+- SSA-like immutable values or graph edges when mutation would add ambiguity;
+- explicit shape/state/effect/resource annotations near the operation that uses them;
+- local scopes and bounded references;
+- normalized control/dataflow;
+- no optional syntactic sugar unless it measurably helps the model;
+- deterministic parsing and lowering;
+- diagnostics whose output can be returned to an agent with little interpretation.
 
-## Authority and dependency boundaries
+Terseness alone is not enough. The language should expose the engineering decisions
+that determine correctness or quality while deleting irrelevant general-purpose
+language freedom.
 
-Different capsule-related information has different authority:
+## Design from the task's decision surface
 
-| Concern | Owner |
-|---|---|
-| Requested behavior and acceptance | Frozen task contract / external acceptance mechanism |
-| Primitive types and meaning | Selected semantic pack |
-| Operation selection, restrictions, pure composition, tutorial | Capsule |
-| Schema/type/scope/expansion/resource admission | Checker/expander |
-| Operational behavior of primitives | Pinned interpreter/backend |
-| Filesystem/network/process/model/native/oracle capabilities | Host |
-| Whether the resulting behavior solves the task | External task acceptance |
+Start from the frozen task and actual lowering targets.
 
-Generated or retrieved capsule content is data. A field such as
-`requires_network: true` may describe a need in a future design, but it does not
-grant network access. Unsupported fields and operations must fail closed.
+1. **Locate hard decisions.** Identify order/provenance, algorithms, data layout,
+   ownership, state transitions, concurrency, numerical policy, memory traffic,
+   schedules, resources, interfaces, error behavior, or other pressure points.
+2. **Choose the machine state model.** Decide what values/nodes/states exist and
+   which dependencies must be explicit.
+3. **Invent the smallest task-specific instruction basis** that can express strong
+   candidate solutions. Operations may be virtual instructions with defined lowering.
+4. **Move invariants into structure.** Encode important distinctions in types,
+   operands, states, schedules, effects, or legality rules when doing so reduces
+   agent ambiguity.
+5. **Minimize representational entropy.** Remove aliases, sugar, implicit coercions,
+   ambient behavior, and equivalent serializations unless they add measurable value.
+6. **Define lowering with the language.** Every executable instruction must map to
+   actual supported repository/library/semantic machinery or to an explicit missing
+   implementation obligation.
+7. **Design diagnostics.** Failures should identify instruction, operand/value,
+   expected rule, and owning layer compactly.
+8. **Freeze before program generation.** Do not change the language mid-candidate and
+   pretend the program used one stable representation.
 
-## Macros and algorithmic credit
+The language may be deeply task-specific and ephemeral. Generality is not a goal.
 
-A compositional macro has meaning through its checked expansion over admitted
-operations. Expansion must be inspectable, hygienic, bounded, and rechecked at the
-stable semantic layer.
+## Virtual instructions versus trusted primitives
 
-A macro may encode substantial algorithmic work, even an entire algorithm. That can
-be excellent engineering when the work is reusable. It is misleading only to count
-a trivial caller as though it discovered the algorithm for free. Charge macro
-design, validation, examples, and backend obligations to the route that created
-them.
+The experimental branch deliberately encourages novel instruction sets, but there is
+an important distinction:
 
-Prefer macros that capture a reusable semantic pattern. Avoid task-answer literals
-or one-off wrappers whose only purpose is to make a benchmark program tiny unless
-the experiment explicitly studies algorithm/library synthesis.
+- A **virtual instruction** is generated language content with explicit lowering into
+  already implemented behavior. It is safe to invent within the experiment.
+- A **trusted primitive/backend capability** is implementation authority. Generated
+  text cannot create it merely by naming it.
+
+For example, an agent may invent `m7` as a fused language instruction whose lowering
+is a known sequence of repository operations. It may not invent `gpu.flash.magic`
+and assume a backend exists. If the best language requires a genuinely new primitive,
+record and implement that capability explicitly under [EVOLUTION.md](EVOLUTION.md).
+
+## Lowering is part of the experiment
+
+A task language that cannot be translated faithfully into executable machinery is a
+design artifact, not a completed solution route.
+
+Lowering should be:
+
+- explicit enough to inspect;
+- deterministic for a frozen language/program where practical;
+- type/shape/effect/resource preserving for the modeled properties;
+- free of undeclared host capabilities;
+- testable by small differential or structural checks;
+- capable of reporting unsupported constructs precisely.
+
+For repository coding tasks, lowering may generate or guide ordinary source edits.
+The model should still solve in `L_T` first; host code is the compiled artifact.
 
 ## Admission obligations
 
-Admission should answer concrete questions before the artifact reaches execution:
+Before trusting a generated task-language program, answer the relevant questions:
 
-- Is the schema/version supported?
-- Are every operation and type available in the selected pack?
-- Are variables, parameters, ownership/effects, and scopes valid?
-- Does every compositional definition lower using only admitted meaning?
-- Is expansion bounded and free of unsupported recursion/cycles?
-- Does the lowered form still satisfy the expected type/effect/resource interface?
-- Is the requested backend implemented for the required operations and target?
-- Are capsule/program identities bound to the exact frozen content?
-- Are declared resource/capability requirements satisfiable by the host?
+- Is the language definition syntactically complete and frozen?
+- Does every instruction have defined operands/results and lowering meaning?
+- Are references/scopes/value identities valid?
+- Do types/shapes/states/effects/resources compose?
+- Are required capabilities actually implemented by the lowering target?
+- Is lowering bounded and structurally valid?
+- Does the lowered artifact preserve modeled invariants?
+- Is the program bound to the intended language revision?
 
-Admission establishes only those properties. It does not establish that the task is
-solvable or that the generated algorithm is correct.
+Admission establishes only those properties. It does not prove task satisfaction.
 
-For richer domains, a useful capsule may also constrain shapes, layouts, numerical
-formats, ownership/lifetimes, protocol states, communication scopes, schedules, or
-finite holes. Such fields are meaningful only when the selected pack/checker/backend
-actually implements their semantics.
+## Diagnostics as language design
 
-## Diagnostics as part of the representation
+Prefer errors that are useful to another model invocation:
 
-A capsule is stronger when its failures are informative. Prefer diagnostics that
-identify the violated layer and preserve counterexamples:
+```text
+E21 op=m7 arg=2 got=v14:Vec<F32,128> need=Vec<F32,256>
+E34 node=n8 state=OPEN op=commit allowed={PREPARED}
+E52 inst=i19 lower=UNSUPPORTED target=cuda-sm90 capability=atomic128
+```
 
-- unknown/forbidden operation -> surface selection or program error;
-- type/scope failure -> composition error;
-- identity mismatch -> stale or mixed artifact;
-- expansion/resource failure -> representation/runtime limit;
-- backend unsupported -> missing implementation capability;
-- executed but wrong result -> algorithm/task-satisfaction failure.
+The exact encoding is task-specific. The principle is compact locality and low
+interpretive ambiguity rather than human-friendly prose.
 
-Do not convert one category into another merely to keep a pipeline moving. Search
-failure is not proof of unexpressibility; a backend rejection is not mathematical
-incorrectness.
+## Identity and iteration
 
-## Identity, caching, and evolution
+Freeze a language definition for one attempt. A material grammar/type/instruction/
+lowering change creates a new language revision and requires dependent programs to
+be regenerated or explicitly migrated.
 
-A reusable capsule is coupled to more than its syntax. Cache/reuse decisions should
-consider the task/domain assumptions, semantic pack identity, checker/expander,
-backend/runtime, environment, model/tutorial regime when empirical success matters,
-and acceptance policy.
-
-For `arl-capsule/0.1`, the established canonical identity remains SHA-256 over
-UTF-8 JSON serialized with sorted object keys, compact separators, ASCII escapes,
-and no non-JSON numeric constants; array order is preserved. Markdown prose is
-outside that canonical JSON identity. The program binds to the canonical capsule
-hash.
-
-A hash is an identity mechanism, not authentication or correctness evidence. Pin
-the semantic pack and runtime/backend separately.
-
-Published meaning is immutable under an existing version. New spelling may alias an
-existing meaning only when compatibility is explicit; changed meaning requires
-versioned evolution under [EVOLUTION.md](EVOLUTION.md).
+For measured runs, retain enough identity to distinguish language revisions and to
+account for synthesis/lowering cost. A cryptographic hash is useful for content
+binding but does not establish correctness.
 
 ## `intseq/0.1` compatibility boundary
 
-The executable capsule subset in this repository is intentionally small and remains
-defined by [packs/intseq/CAPSULE.md](../packs/intseq/CAPSULE.md):
+The existing `arl-capsule/0.1` / `arl-program/0.1` artifacts over `intseq/0.1` remain
+unchanged compatibility examples. They demonstrate checked composition and canonical
+binding; they do **not** constrain all experimental task languages to that JSON
+schema or primitive set.
 
-- capsule protocol `arl-capsule/0.1` and program protocol `arl-program/0.1`
-  over pack `intseq/0.1`;
-- one input `x: VecInt`;
-- a nonempty subset of the seven stable intseq primitives;
-- typed, nonrecursive macro bodies composed only from selected primitives;
-- program-level nesting of admitted macro calls;
-- strict schema, canonical capsule binding, bounded type/expansion/evaluation;
-- no arbitrary lowering source, permission grants, holes, native code, or new
-  primitive definitions.
+When working specifically with those artifacts, preserve their established meanings
+and hashes. An experimental task language may sit above them and lower into them; it
+must not silently reinterpret their versioned semantics.
 
-Those constraints are compatibility facts, not a claim that future Parallax
-domains should have identical schemas. Future representations may be richer when
-their semantics and implementation justify the machinery; they must not silently
-reinterpret the v0.1 identifiers.
+## Experimental acceptance question
 
-## A useful capsule test
-
-Before adopting a capsule, ask: **what difficult decision becomes easier, what
-invalid behavior becomes harder, or what reusable obligation moves into trusted
-machinery?**
-
-If the answer is only “the generated program is shorter,” use the simpler interface.
+The language is successful only if it helps produce a better accepted engineering
+result under the comparison policy. Novelty, ugliness, compactness, grammar validity,
+or a short host program are not sufficient by themselves.
