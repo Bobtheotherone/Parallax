@@ -1,0 +1,16 @@
+{
+  "check_kind": "documentation-integrity",
+  "errors": [],
+  "external_urls_checked": false,
+  "local_links_checked": 189,
+  "markdown_files": 48,
+  "original_manifest_entries": 35,
+  "packet_source_identities": 5,
+  "ready_specs": [
+    "docs/specs/001-intseq-reference.md"
+  ],
+  "runtime_execution_by_this_check": "NOT_RUN",
+  "semantic_correctness_assessed": false,
+  "source_markdown_files": 36,
+  "status": "PASS"
+}
