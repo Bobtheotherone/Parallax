@@ -1,0 +1,29 @@
+name: Raytracer pinned checkout transfer
+on:
+  push:
+    branches: [demo/raytracer-experimental]
+    paths: [.github/workflows/raytracer-transfer.yml]
+permissions:
+  contents: read
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 751edaf4886ae7c4d0b601469802f798cf2037ad
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify and package exact base
+        run: |
+          test "$(git rev-parse HEAD)" = 751edaf4886ae7c4d0b601469802f798cf2037ad
+          git switch -c demo/raytracer-experimental
+          git ls-tree -r --name-only HEAD | grep '\.md$' > /tmp/parallax-markdown-manifest.txt
+          tar -czf /tmp/parallax-pinned-checkout.tar.gz --exclude=.git/config .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parallax-pinned-checkout
+          path: |
+            /tmp/parallax-pinned-checkout.tar.gz
+            /tmp/parallax-markdown-manifest.txt
+          retention-days: 1
