@@ -1,4 +1,0 @@
-# Local Python artifacts; evidence under runs/ is deliberately not ignored.
-__pycache__/
-*.py[cod]
-.venv/
